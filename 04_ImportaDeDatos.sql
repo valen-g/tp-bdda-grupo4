@@ -8,6 +8,8 @@ CREATE OR ALTER PROCEDURE ImportarArchivoParqueCSV
 AS
 BEGIN
 
+    SET NOCOUNT ON;
+
     DROP TABLE IF EXISTS #TempBaseCSV;
 
     CREATE TABLE #TempBaseCSV
@@ -37,18 +39,18 @@ BEGIN
         TipoPropiedad VARCHAR(255),
         SubtipoPropiedad VARCHAR(255),
         AutoridadGestion VARCHAR(500),
-        PlanGestion VARCHAR(128),
+        PlanGestion VARCHAR(MAX),
         Verificacion VARCHAR(100),
         IdMetadato VARCHAR(100),
-        ISO3Padre VARCHAR(128),
+        ISO3Padre VARCHAR(20),
         ISO3 VARCHAR(20),
-        InfoSupplementaria VARCHAR(128),
-        ObjetivoConservacion VARCHAR(128),
+        InfoSupplementaria VARCHAR(MAX),
+        ObjetivoConservacion VARCHAR(MAX),
         AguasInteriores VARCHAR(100),
         EvaluacionOECM VARCHAR(100)
     );
 
-    DECLARE @SQL NVARCHAR(512);
+    DECLARE @SQL NVARCHAR(MAX);
 
     SET @SQL = N'
     BULK INSERT #TempBaseCSV
@@ -56,13 +58,16 @@ BEGIN
     WITH
     (
         FIRSTROW = 2,
-        FIELDTERMINATOR = '','',
+        FIELDTERMINATOR = '';'',
         ROWTERMINATOR = ''0x0a'',
-        CODEPAGE = ''65001'',
-        FORMAT = ''CSV''
+        CODEPAGE = ''65001''
     );';
 
     EXEC sp_executesql @SQL;
+
+    ------------------------------------------------------------------
+    -- TIPOS DE PARQUE NUEVOS
+    ------------------------------------------------------------------
 
     INSERT INTO Administracion.TipoParque (Descripcion)
     SELECT DISTINCT TRIM(T.Tipo)
@@ -75,6 +80,10 @@ BEGIN
           FROM Administracion.TipoParque TP
           WHERE TRIM(TP.Descripcion) = TRIM(T.Tipo)
       );
+
+    ------------------------------------------------------------------
+    -- ACTUALIZAR PARQUES EXISTENTES
+    ------------------------------------------------------------------
 
     UPDATE P
     SET
@@ -95,14 +104,19 @@ BEGIN
     INNER JOIN Administracion.TipoParque TP
         ON TRIM(TP.Descripcion) = TRIM(T.Tipo);
 
-    INSERT INTO Administracion.Parque
-    (
-        Nombre,
-        Ubicacion,
-        Superficie,
-        Descripcion,
-        IdTipoParque
-    )
+    ------------------------------------------------------------------
+    -- INSERTAR PARQUES NUEVOS USANDO EL ABM
+    ------------------------------------------------------------------
+
+    DECLARE @Nombre VARCHAR(100);
+    DECLARE @Ubicacion VARCHAR(200);
+    DECLARE @Superficie DECIMAL(12,2);
+    DECLARE @Descripcion VARCHAR(100);
+    DECLARE @IdTipoParque INT;
+    DECLARE @IdParque INT;
+
+    DECLARE CurParques CURSOR FOR
+
     SELECT
         LEFT(
             TRIM(T.Tipo) + ' - ' + TRIM(T.Nombre),
@@ -122,12 +136,51 @@ BEGIN
         WHERE TRIM(P.Ubicacion) = TRIM(T.Nombre)
     );
 
+    OPEN CurParques;
+
+    FETCH NEXT FROM CurParques
+    INTO
+        @Nombre,
+        @Ubicacion,
+        @Superficie,
+        @Descripcion,
+        @IdTipoParque;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+
+        EXEC Administracion.Parque_Insertar
+            @Nombre = @Nombre,
+            @Ubicacion = @Ubicacion,
+            @Superficie = @Superficie,
+            @Descripcion = @Descripcion,
+            @IdTipoParque = @IdTipoParque,
+            @EsActivo = 1,
+            @IdParque = @IdParque OUTPUT;
+
+        FETCH NEXT FROM CurParques
+        INTO
+            @Nombre,
+            @Ubicacion,
+            @Superficie,
+            @Descripcion,
+            @IdTipoParque;
+
+    END
+
+    CLOSE CurParques;
+    DEALLOCATE CurParques;
+
 END
 GO
 
 
 EXEC ImportarArchivoParqueCSV
-'C:\Users\iviez\Documents\BDDA\TP\ParquesNacionales\0. Entradas\0. Parques.csv'
+'C:\temp\parque.csv'
+
+
+SELECT * FROM Administracion.Parque;
+SELECT * FROM Administracion.TipoParque;
 
 
 ----------------------------------------------------------------------------------
@@ -287,109 +340,3 @@ EXEC ImportarArchivoTarifaCSV
     'C:\Users\aguse\Documents\temp\tarifasParques.csv';
 
 SELECT * FROM Facturacion.PrecioEntrada;
-
-CREATE OR ALTER PROCEDURE ImportarArchivoPersonal (@path varchar(255))
-AS 
-BEGIN
-      
-    DROP TABLE IF EXISTS #TempPersonalCSV;
-
-	CREATE TABLE #TempPersonalCSV 
-    (
-        DNI VARCHAR(32),
-        ApeNom VARCHAR(128),
-        escalafon VARCHAR(255),
-        tipo_contratacion VARCHAR(255),
-        organismo VARCHAR(255),
-        tipo_administracion VARCHAR(32),
-        telefono VARCHAR(32),
-        periodo VARCHAR(16)
-    );
-
-    DECLARE @SQL NVARCHAR(512);
-    
-    SET @sql = N'
-    BULK INSERT #TempPersonalCSV
-    FROM ''' + @path + '''
-    WITH
-    (
-        FIELDTERMINATOR = '';'',
-        ROWTERMINATOR = ''0x0a'', --Es lo mismo que \n, pero no sé por qué no funcionaba
-        CODEPAGE = ''65001'',
-        FIRSTROW = 2,
-        FIELDQUOTE = ''"'',
-        FORMAT = ''CSV''
-    );';
-
-    EXEC sp_executesql @sql;
-    
-    SELECT * FROM #TempPersonalCSV
-
-    DELETE FROM Administracion.Personal;
-    
-    INSERT INTO Administracion.Personal 
-    (
-        DNI, 
-        NombreApellido, 
-        Telefono, 
-        TipoPersonal,
-        EsActivo,
-        FechaNacimiento,
-        Email,
-        IdHabilitacion,
-        IdAsignacion
-    )
-    SELECT 
-        TRY_CAST(REPLACE(csv.DNI, '.', '') AS INT),
-        csv.ApeNom,
-        TRY_CAST(TelefonoFinal.TelefonoSinCaracteres AS BIGINT),
-        
-        CASE 
-            WHEN TRIM(csv.escalafon) LIKE '%GUARDAPARQUES%' 
-            THEN 'Guardaparques' 
-            ELSE 'Guia' 
-        END,
-        
-        1 AS EsActivo, 
-        NULL AS FechaNacimiento,
-        NULL AS Email,
-        
-        Hab.IdHabilitacion,
-        Asig.IdAsignacion
-        
-    FROM #TempPersonalCSV csv
-
-    CROSS APPLY (
-        SELECT CASE 
-            WHEN CHARINDEX('/', csv.telefono) > 0 
-            THEN LEFT(csv.telefono, CHARINDEX('/', csv.telefono) - 1)
-            ELSE csv.telefono 
-        END AS TelefonoCortado
-    ) PrimeraParteTelefono
-    -- esto lo hacemos asi porque en el archivo CSV que encontramos 
-    --hay telefonos que son del estilo 4317-6000 / 6005
-    -- entonces nos quedamos solo con la primer parte de este
-
-    CROSS APPLY (
-        SELECT REPLACE(REPLACE(PrimeraParteTelefono.TelefonoCortado, '-', ''), ' ', '') AS TelefonoSinCaracteres
-    ) TelefonoFinal
-    
-    CROSS APPLY (
-        SELECT TOP 1 IdHabilitacion 
-        FROM Administracion.Habilitacion 
-        WHERE csv.DNI = csv.DNI
-        ORDER BY NEWID()
-    ) Hab
-    
-    CROSS APPLY (
-        SELECT TOP 1 IdAsignacion 
-        FROM Administracion.AsignacionParque 
-        WHERE csv.DNI = csv.DNI
-        ORDER BY NEWID()
-    ) Asig
-    
-    WHERE csv.DNI IS NOT NULL AND TRIM(csv.DNI) <> '' AND UPPER(csv.organismo) LIKE '%PARQUES NACIONALES%';
-END
-
-EXEC ImportarArchivoPersonal
-'C:\Users\iviez\Documents\BDDA\TP\ParquesNacionales\0. Entradas\2. Personal.csv'
