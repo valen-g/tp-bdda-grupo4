@@ -1,37 +1,17 @@
 /*
-================================================================================
-    Universidad     : [PLACEHOLDER - Nombre de la Universidad]
-    Materia         : 3641 - Bases de Datos Aplicada
-    Trabajo Práctico: Sistema de Gestión para Parques Nacionales
-    Grupo           : [PLACEHOLDER - Numero de Grupo]
-    Integrantes     : [PLACEHOLDER - Apellido, Nombre]
-                       [PLACEHOLDER - Apellido, Nombre]
-                       [PLACEHOLDER - Apellido, Nombre]
-    Profesor/es     : [PLACEHOLDER - Apellido, Nombre]
-    Fecha           : [PLACEHOLDER - DD/MM/AAAA]
---------------------------------------------------------------------------------
-    Script          : 03_StoredProcedures_ABM.sql
-    Objetivo        : Crear los Stored Procedures de Alta, Baja, Modificación
-                       y Listado (ABM) para cada tabla del sistema. Ninguna
-                       operación de alta/baja/modificación sobre las tablas debe
-                       realizarse por acceso directo: todo el acceso se
-                       encapsula en estos procedimientos.
+# Universidad: Universidad Nacional de La Matanza
+# Materia: 3641 - Bases de Datos Aplicada
+# Grupo: Grupo 4
+# Integrantes:
+- Belloni, Nicolas
+- Bernardo, Ivan
+- Gonzalez, Agustin
+- Gallo, Valentina
 
-    Norma de nomenclatura para esta entrega:
-        NombreTabla_Insertar   -> Alta de un registro
-        NombreTabla_Actualizar -> Modificación de un registro existente
-        NombreTabla_Eliminar   -> Baja de un registro (física, salvo se
-                                   indique lo contrario en el comentario del SP)
-        NombreTabla_Listar     -> Listado/consulta de registros
+# Fecha: 05/06/2026
 
-    Requiere haber ejecutado previamente:
-        01_CreacionBaseDatosEsquemas.sql
-        02_CreacionTablas.sql
-
-    NOTA: Los SP de Administracion.TipoVisitante están incluidos por
-    completitud, pero esa tabla no podrá crearse hasta resolver el problema
-    de orden/modelo documentado en 02_CreacionTablas.sql. Ver comentario allí.
-================================================================================
+# Objetivo:
+Crear los Stored Procedures de Alta, Baja, Modificación (ABM) 
 */
 
 USE ParquesNacionalesDB;
