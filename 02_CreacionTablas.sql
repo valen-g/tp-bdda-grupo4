@@ -46,7 +46,7 @@ BEGIN
         IdParque INT IDENTITY(1,1) PRIMARY KEY,
         Nombre VARCHAR(100) NOT NULL,
         Ubicacion VARCHAR(200) NOT NULL,
-        Superficie INT NOT NULL CHECK (Superficie > 0),
+        Superficie INT NOT NULL CHECK (Superficie >= 0),
         Descripcion VARCHAR(100),
         IdTipoParque INT,
         EsActivo BIT NOT NULL DEFAULT 1,
@@ -97,8 +97,7 @@ IF OBJECT_ID('Administracion.Personal', 'U') IS NULL
 BEGIN
     CREATE TABLE Administracion.Personal
     (
-        Nombre VARCHAR(20) NOT NULL,
-        Apellido VARCHAR(20) NOT NULL,
+        NombreApellido VARCHAR(128) NOT NULL,
         DNI INT NOT NULL PRIMARY KEY,
         FechaNacimiento DATE,
         Email VARCHAR(50),
@@ -108,13 +107,12 @@ BEGIN
         IdHabilitacion INT,
         IdAsignacion INT,
 
-        CONSTRAINT FK_Habilitacion_Personal FOREIGN KEY (IdHabilitacion)
+        CONSTRAINT FK_Habilitacion_Personal FOREIGN KEY (IdHabilitacion) 
             REFERENCES Administracion.Habilitacion(IdHabilitacion),
-        CONSTRAINT FK_AsignacionParque_Personal FOREIGN KEY (IdAsignacion)
+        CONSTRAINT FK_AsignacionParque_Personal FOREIGN KEY (IdAsignacion) 
             REFERENCES Administracion.AsignacionParque(IdAsignacion)
     );
 END
-GO
 
 -- ----------------------------------------------------------------------------
 -- Actividad
