@@ -1,17 +1,37 @@
 /*
-# Universidad: Universidad Nacional de La Matanza
-# Materia: 3641 - Bases de Datos Aplicada
-# Grupo: Grupo 4
-# Integrantes:
-- Belloni, Nicolas
-- Bernardo, Ivan
-- Gonzalez, Agustin
-- Gallo, Valentina
+================================================================================
+    Universidad     : [PLACEHOLDER - Nombre de la Universidad]
+    Materia         : 3641 - Bases de Datos Aplicada
+    Trabajo Práctico: Sistema de Gestión para Parques Nacionales
+    Grupo           : [PLACEHOLDER - Numero de Grupo]
+    Integrantes     : [PLACEHOLDER - Apellido, Nombre]
+                       [PLACEHOLDER - Apellido, Nombre]
+                       [PLACEHOLDER - Apellido, Nombre]
+    Profesor/es     : [PLACEHOLDER - Apellido, Nombre]
+    Fecha           : [PLACEHOLDER - DD/MM/AAAA]
+--------------------------------------------------------------------------------
+    Script          : 03_StoredProcedures_ABM.sql
+    Objetivo        : Crear los Stored Procedures de Alta, Baja, Modificación
+                       y Listado (ABM) para cada tabla del sistema. Ninguna
+                       operación de alta/baja/modificación sobre las tablas debe
+                       realizarse por acceso directo: todo el acceso se
+                       encapsula en estos procedimientos.
 
-# Fecha: 05/06/2026
+    Norma de nomenclatura para esta entrega:
+        NombreTabla_Insertar   -> Alta de un registro
+        NombreTabla_Actualizar -> Modificación de un registro existente
+        NombreTabla_Eliminar   -> Baja de un registro (física, salvo se
+                                   indique lo contrario en el comentario del SP)
+        NombreTabla_Listar     -> Listado/consulta de registros
 
-# Objetivo:
-Crear los Stored Procedures de Alta, Baja, Modificación (ABM) 
+    Requiere haber ejecutado previamente:
+        01_CreacionBaseDatosEsquemas.sql
+        02_CreacionTablas.sql
+
+    NOTA: Los SP de Administracion.TipoVisitante están incluidos por
+    completitud, pero esa tabla no podrá crearse hasta resolver el problema
+    de orden/modelo documentado en 02_CreacionTablas.sql. Ver comentario allí.
+================================================================================
 */
 
 USE ParquesNacionalesDB;
@@ -117,6 +137,28 @@ BEGIN
 END
 GO
 
+-- ----------------------------------------------------------------------------
+-- TipoParque_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Administracion.TipoParque_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Administracion.TipoParque_Listar;
+GO
+CREATE PROCEDURE Administracion.TipoParque_Listar
+(
+    @IdTipoParque INT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT IdTipoParque, Descripcion
+    FROM Administracion.TipoParque
+    WHERE (@IdTipoParque IS NULL OR IdTipoParque = @IdTipoParque)
+    ORDER BY Descripcion;
+END
+GO
+
+
 -- ============================================================================
 -- TABLA: Administracion.Parque
 -- ============================================================================
@@ -131,7 +173,7 @@ CREATE PROCEDURE Administracion.Parque_Insertar
 (
     @Nombre VARCHAR(100),
     @Ubicacion VARCHAR(200),
-    @Superficie INT,
+    @Superficie DECIMAL(12,2),
     @Descripcion VARCHAR(100) = NULL,
     @IdTipoParque INT = NULL,
     @EsActivo BIT = 1,
@@ -149,8 +191,8 @@ BEGIN
     IF @Ubicacion IS NULL OR LTRIM(RTRIM(@Ubicacion)) = ''
         SET @Errores += 'La ubicación del parque es obligatoria. ';
 
-    IF @Superficie IS NULL OR @Superficie < 0
-        SET @Errores += 'La superficie debe ser un valor mayor o igual a 0. ';
+    IF @Superficie IS NULL OR @Superficie <= 0
+        SET @Errores += 'La superficie debe ser un valor mayor a 0. ';
 
     IF @IdTipoParque IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Administracion.TipoParque WHERE IdTipoParque = @IdTipoParque)
         SET @Errores += 'El tipo de parque indicado no existe. ';
@@ -199,8 +241,8 @@ BEGIN
     IF @Ubicacion IS NULL OR LTRIM(RTRIM(@Ubicacion)) = ''
         SET @Errores += 'La ubicación del parque es obligatoria. ';
 
-    IF @Superficie IS NULL OR @Superficie < 0
-        SET @Errores += 'La superficie debe ser un valor mayor o igual a 0. ';
+    IF @Superficie IS NULL OR @Superficie <= 0
+        SET @Errores += 'La superficie debe ser un valor mayor a 0. ';
 
     IF @IdTipoParque IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Administracion.TipoParque WHERE IdTipoParque = @IdTipoParque)
         SET @Errores += 'El tipo de parque indicado no existe. ';
@@ -225,8 +267,10 @@ GO
 -- ----------------------------------------------------------------------------
 -- Parque_Eliminar
 -- ----------------------------------------------------------------------------
--- BAJA LOGICA
-
+-- Nota: se realiza baja lógica (EsActivo = 0) en lugar de baja física, dado
+-- que Parque es referenciado por múltiples tablas (Actividad, TicketFactura,
+-- Concesion, PrecioEntrada, AsignacionParque) y su eliminación física
+-- comprometería la integridad del historial del sistema.
 IF OBJECT_ID('Administracion.Parque_Eliminar', 'P') IS NOT NULL
     DROP PROCEDURE Administracion.Parque_Eliminar;
 GO
@@ -249,6 +293,32 @@ BEGIN
     WHERE IdParque = @IdParque;
 END
 GO
+
+-- ----------------------------------------------------------------------------
+-- Parque_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Administracion.Parque_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Administracion.Parque_Listar;
+GO
+CREATE PROCEDURE Administracion.Parque_Listar
+(
+    @IdParque INT = NULL,
+    @SoloActivos BIT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT p.IdParque, p.Nombre, p.Ubicacion, p.Superficie, p.Descripcion,
+           p.IdTipoParque, tp.Descripcion AS TipoParque, p.EsActivo
+    FROM Administracion.Parque p
+    LEFT JOIN Administracion.TipoParque tp ON tp.IdTipoParque = p.IdTipoParque
+    WHERE (@IdParque IS NULL OR p.IdParque = @IdParque)
+      AND (@SoloActivos IS NULL OR p.EsActivo = @SoloActivos)
+    ORDER BY p.Nombre;
+END
+GO
+
 
 -- ============================================================================
 -- TABLA: Administracion.AsignacionParque
@@ -369,6 +439,32 @@ BEGIN
     WHERE IdAsignacion = @IdAsignacion;
 END
 GO
+
+-- ----------------------------------------------------------------------------
+-- AsignacionParque_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Administracion.AsignacionParque_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Administracion.AsignacionParque_Listar;
+GO
+CREATE PROCEDURE Administracion.AsignacionParque_Listar
+(
+    @IdAsignacion INT = NULL,
+    @IdParque INT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT a.IdAsignacion, a.IdParque, p.Nombre AS NombreParque,
+           a.FechaIngreso, a.FechaEgreso, a.MotivoEgreso
+    FROM Administracion.AsignacionParque a
+    INNER JOIN Administracion.Parque p ON p.IdParque = a.IdParque
+    WHERE (@IdAsignacion IS NULL OR a.IdAsignacion = @IdAsignacion)
+      AND (@IdParque IS NULL OR a.IdParque = @IdParque)
+    ORDER BY a.FechaIngreso DESC;
+END
+GO
+
 
 -- ============================================================================
 -- TABLA: Administracion.Habilitacion
@@ -493,6 +589,26 @@ BEGIN
 END
 GO
 
+-- ----------------------------------------------------------------------------
+-- Habilitacion_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Administracion.Habilitacion_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Administracion.Habilitacion_Listar;
+GO
+CREATE PROCEDURE Administracion.Habilitacion_Listar
+(
+    @IdHabilitacion INT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT IdHabilitacion, Descripcion, FechaOtorgamiento, FechaVencimiento
+    FROM Administracion.Habilitacion
+    WHERE (@IdHabilitacion IS NULL OR IdHabilitacion = @IdHabilitacion)
+    ORDER BY FechaVencimiento;
+END
+GO
 
 -- ============================================================================
 -- TABLA: Administracion.Personal
@@ -501,13 +617,9 @@ GO
 -- ----------------------------------------------------------------------------
 -- Personal_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Personal_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Personal_Insertar;
-GO
-CREATE PROCEDURE Administracion.Personal_Insertar
+CREATE OR ALTER PROCEDURE Administracion.Personal_Insertar
 (
-    @Nombre VARCHAR(20),
-    @Apellido VARCHAR(20),
+    @NombreApe VARCHAR(128),
     @DNI INT,
     @FechaNacimiento DATE = NULL,
     @Email VARCHAR(50) = NULL,
@@ -525,23 +637,37 @@ BEGIN
 
     IF @DNI IS NULL
         SET @Errores += 'El DNI es obligatorio. ';
-    ELSE IF EXISTS (SELECT 1 FROM Administracion.Personal WHERE DNI = @DNI)
+    ELSE IF EXISTS
+    (
+        SELECT 1
+        FROM Administracion.Personal
+        WHERE DNI = @DNI
+    )
         SET @Errores += 'Ya existe una persona registrada con ese DNI. ';
 
-    IF @Nombre IS NULL OR LTRIM(RTRIM(@Nombre)) = ''
-        SET @Errores += 'El nombre es obligatorio. ';
+    IF @NombreApe IS NULL OR TRIM(@NombreApe) = ''
+        SET @Errores += 'El nombre y apellido son obligatorios. ';
 
-    IF @Apellido IS NULL OR LTRIM(RTRIM(@Apellido)) = ''
-        SET @Errores += 'El apellido es obligatorio. ';
-
-    IF @TipoPersonal IS NULL OR LTRIM(RTRIM(@TipoPersonal)) = ''
+    IF @TipoPersonal IS NULL OR TRIM(@TipoPersonal) = ''
         SET @Errores += 'El tipo de personal es obligatorio. ';
 
-    IF @IdHabilitacion IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Administracion.Habilitacion WHERE IdHabilitacion = @IdHabilitacion)
+    IF @IdHabilitacion IS NOT NULL
+       AND NOT EXISTS
+       (
+           SELECT 1
+           FROM Administracion.Habilitacion
+           WHERE IdHabilitacion = @IdHabilitacion
+       )
         SET @Errores += 'La habilitación indicada no existe. ';
 
-    IF @IdAsignacion IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Administracion.AsignacionParque WHERE IdAsignacion = @IdAsignacion)
-        SET @Errores += 'La asignación de parque indicada no existe. ';
+    IF @IdAsignacion IS NOT NULL
+       AND NOT EXISTS
+       (
+           SELECT 1
+           FROM Administracion.AsignacionParque
+           WHERE IdAsignacion = @IdAsignacion
+       )
+        SET @Errores += 'La asignación indicada no existe. ';
 
     IF @Errores <> ''
     BEGIN
@@ -550,9 +676,29 @@ BEGIN
     END
 
     INSERT INTO Administracion.Personal
-        (Nombre, Apellido, DNI, FechaNacimiento, Email, Telefono, TipoPersonal, EsActivo, IdHabilitacion, IdAsignacion)
+    (
+        NombreApe,
+        DNI,
+        FechaNacimiento,
+        Email,
+        Telefono,
+        TipoPersonal,
+        EsActivo,
+        IdHabilitacion,
+        IdAsignacion
+    )
     VALUES
-        (@Nombre, @Apellido, @DNI, @FechaNacimiento, @Email, @Telefono, @TipoPersonal, @EsActivo, @IdHabilitacion, @IdAsignacion);
+    (
+        @NombreApe,
+        @DNI,
+        @FechaNacimiento,
+        @Email,
+        @Telefono,
+        @TipoPersonal,
+        @EsActivo,
+        @IdHabilitacion,
+        @IdAsignacion
+    );
 END
 GO
 
@@ -562,11 +708,11 @@ GO
 IF OBJECT_ID('Administracion.Personal_Actualizar', 'P') IS NOT NULL
     DROP PROCEDURE Administracion.Personal_Actualizar;
 GO
-CREATE PROCEDURE Administracion.Personal_Actualizar
+
+CREATE OR ALTER PROCEDURE Administracion.Personal_Actualizar
 (
     @DNI INT,
-    @Nombre VARCHAR(20),
-    @Apellido VARCHAR(20),
+    @NombreApe VARCHAR(128),
     @FechaNacimiento DATE = NULL,
     @Email VARCHAR(50) = NULL,
     @Telefono BIGINT = NULL,
@@ -581,22 +727,36 @@ BEGIN
 
     DECLARE @Errores VARCHAR(MAX) = '';
 
-    IF NOT EXISTS (SELECT 1 FROM Administracion.Personal WHERE DNI = @DNI)
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM Administracion.Personal
+        WHERE DNI = @DNI
+    )
         SET @Errores += 'No existe personal registrado con ese DNI. ';
 
-    IF @Nombre IS NULL OR LTRIM(RTRIM(@Nombre)) = ''
-        SET @Errores += 'El nombre es obligatorio. ';
+    IF @NombreApe IS NULL OR TRIM(@NombreApe) = ''
+        SET @Errores += 'El nombre y apellido son obligatorios. ';
 
-    IF @Apellido IS NULL OR LTRIM(RTRIM(@Apellido)) = ''
-        SET @Errores += 'El apellido es obligatorio. ';
-
-    IF @TipoPersonal IS NULL OR LTRIM(RTRIM(@TipoPersonal)) = ''
+    IF @TipoPersonal IS NULL OR TRIM(@TipoPersonal) = ''
         SET @Errores += 'El tipo de personal es obligatorio. ';
 
-    IF @IdHabilitacion IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Administracion.Habilitacion WHERE IdHabilitacion = @IdHabilitacion)
+    IF @IdHabilitacion IS NOT NULL
+       AND NOT EXISTS
+       (
+           SELECT 1
+           FROM Administracion.Habilitacion
+           WHERE IdHabilitacion = @IdHabilitacion
+       )
         SET @Errores += 'La habilitación indicada no existe. ';
 
-    IF @IdAsignacion IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Administracion.AsignacionParque WHERE IdAsignacion = @IdAsignacion)
+    IF @IdAsignacion IS NOT NULL
+       AND NOT EXISTS
+       (
+           SELECT 1
+           FROM Administracion.AsignacionParque
+           WHERE IdAsignacion = @IdAsignacion
+       )
         SET @Errores += 'La asignación de parque indicada no existe. ';
 
     IF @Errores <> ''
@@ -606,8 +766,8 @@ BEGIN
     END
 
     UPDATE Administracion.Personal
-    SET Nombre = @Nombre,
-        Apellido = @Apellido,
+    SET
+        NombreApe = @NombreApe,
         FechaNacimiento = @FechaNacimiento,
         Email = @Email,
         Telefono = @Telefono,
@@ -622,11 +782,14 @@ GO
 -- ----------------------------------------------------------------------------
 -- Personal_Eliminar
 -- ----------------------------------------------------------------------------
--- BORRADO LOGICO
+-- Nota: se realiza baja lógica (EsActivo = 0), ya que Personal puede estar
+-- referenciado en ActividadGuia (historial de tours dictados) y eliminarlo
+-- físicamente rompería la trazabilidad histórica exigida por el TP.
 IF OBJECT_ID('Administracion.Personal_Eliminar', 'P') IS NOT NULL
     DROP PROCEDURE Administracion.Personal_Eliminar;
 GO
-CREATE PROCEDURE Administracion.Personal_Eliminar
+
+CREATE OR ALTER PROCEDURE Administracion.Personal_Eliminar
 (
     @DNI INT
 )
@@ -643,6 +806,42 @@ BEGIN
     UPDATE Administracion.Personal
     SET EsActivo = 0
     WHERE DNI = @DNI;
+END
+GO
+
+-- ----------------------------------------------------------------------------
+-- Personal_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Administracion.Personal_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Administracion.Personal_Listar;
+GO
+
+CREATE OR ALTER PROCEDURE Administracion.Personal_Listar
+(
+    @DNI INT = NULL,
+    @TipoPersonal VARCHAR(20) = NULL,
+    @SoloActivos BIT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        pe.DNI, pe.NombreApe,
+        pe.FechaNacimiento, pe.Email,
+        pe.Telefono, pe.TipoPersonal,
+        pe.EsActivo, pe.IdHabilitacion,
+        pe.IdAsignacion, ap.IdParque,
+        pq.Nombre AS NombreParque
+    FROM Administracion.Personal pe
+    LEFT JOIN Administracion.AsignacionParque ap
+        ON ap.IdAsignacion = pe.IdAsignacion
+    LEFT JOIN Administracion.Parque pq
+        ON pq.IdParque = ap.IdParque
+    WHERE (@DNI IS NULL OR pe.DNI = @DNI)
+      AND (@TipoPersonal IS NULL OR pe.TipoPersonal = @TipoPersonal)
+      AND (@SoloActivos IS NULL OR pe.EsActivo = @SoloActivos)
+    ORDER BY pe.NombreApe;
 END
 GO
 
@@ -771,7 +970,8 @@ GO
 -- ----------------------------------------------------------------------------
 -- Actividad_Eliminar
 -- ----------------------------------------------------------------------------
--- BAJA LOGICA
+-- Nota: baja lógica, ya que la actividad puede tener historial de ventas
+-- (TicketItemActividad) y guías asociados (ActividadGuia).
 IF OBJECT_ID('Administracion.Actividad_Eliminar', 'P') IS NOT NULL
     DROP PROCEDURE Administracion.Actividad_Eliminar;
 GO
@@ -795,10 +995,40 @@ BEGIN
 END
 GO
 
+-- ----------------------------------------------------------------------------
+-- Actividad_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Administracion.Actividad_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Administracion.Actividad_Listar;
+GO
+CREATE PROCEDURE Administracion.Actividad_Listar
+(
+    @IdActividad INT = NULL,
+    @IdParque INT = NULL,
+    @SoloActivas BIT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT a.IdActividad, a.IdParque, pq.Nombre AS NombreParque, a.Nombre, a.Tipo,
+           a.Descripcion, a.Costo, a.DuracionMinutos, a.CupoMaximo, a.EsActivo
+    FROM Administracion.Actividad a
+    INNER JOIN Administracion.Parque pq ON pq.IdParque = a.IdParque
+    WHERE (@IdActividad IS NULL OR a.IdActividad = @IdActividad)
+      AND (@IdParque IS NULL OR a.IdParque = @IdParque)
+      AND (@SoloActivas IS NULL OR a.EsActivo = @SoloActivas)
+    ORDER BY a.Nombre;
+END
+GO
+
 
 -- ============================================================================
 -- TABLA: Administracion.ActividadGuia
 -- ============================================================================
+-- Nota: tabla con clave primaria compuesta (DniPersonal, IdActividad). No
+-- existe una columna identidad propia, por lo que Actualizar requiere ambas
+-- claves para ubicar el registro.
 
 -- ----------------------------------------------------------------------------
 -- ActividadGuia_Insertar
@@ -912,10 +1142,42 @@ BEGIN
 END
 GO
 
+-- ----------------------------------------------------------------------------
+-- ActividadGuia_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Administracion.ActividadGuia_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Administracion.ActividadGuia_Listar;
+GO
+CREATE PROCEDURE Administracion.ActividadGuia_Listar
+(
+    @DniPersonal INT = NULL,
+    @IdActividad INT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT ag.DniPersonal, pe.Nombre, pe.Apellido, ag.IdActividad, ac.Nombre AS NombreActividad,
+           ag.FechaDesde, ag.FechaHasta
+    FROM Administracion.ActividadGuia ag
+    INNER JOIN Administracion.Personal pe ON pe.DNI = ag.DniPersonal
+    INNER JOIN Administracion.Actividad ac ON ac.IdActividad = ag.IdActividad
+    WHERE (@DniPersonal IS NULL OR ag.DniPersonal = @DniPersonal)
+      AND (@IdActividad IS NULL OR ag.IdActividad = @IdActividad)
+    ORDER BY ag.FechaDesde DESC;
+END
+GO
+
 
 -- ============================================================================
 -- TABLA: Administracion.TipoVisitante
 -- ============================================================================
+-- TABLA: Administracion.TipoVisitante
+-- ============================================================================
+-- *** CORREGIDO ***
+-- Tras el ajuste del DER, esta tabla ya no depende de Facturacion.TicketItemEntrada.
+-- La relación correcta es TipoVisitante (1) ---- (N) TicketItemEntrada, con la
+-- FK ubicada en TicketItemEntrada (ver SP de esa tabla más abajo).
 
 -- ----------------------------------------------------------------------------
 -- TipoVisitante_Insertar
@@ -995,7 +1257,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TipoVisitante_Eliminar
 -- ----------------------------------------------------------------------------
--- se valida contra Facturacion.PrecioEntrada y Facturacion.TicketItemEntrada,
+-- Nota: se valida contra Facturacion.PrecioEntrada y Facturacion.TicketItemEntrada,
 -- ya que ambas referencian a este tipo de visitante.
 IF OBJECT_ID('Administracion.TipoVisitante_Eliminar', 'P') IS NOT NULL
     DROP PROCEDURE Administracion.TipoVisitante_Eliminar;
@@ -1029,6 +1291,30 @@ BEGIN
     WHERE IdTipoVisitante = @IdTipoVisitante;
 END
 GO
+
+-- ----------------------------------------------------------------------------
+-- TipoVisitante_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Administracion.TipoVisitante_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Administracion.TipoVisitante_Listar;
+GO
+CREATE PROCEDURE Administracion.TipoVisitante_Listar
+(
+    @IdTipoVisitante INT = NULL,
+    @SoloActivos BIT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT IdTipoVisitante, Descripcion, EsActivo
+    FROM Administracion.TipoVisitante
+    WHERE (@IdTipoVisitante IS NULL OR IdTipoVisitante = @IdTipoVisitante)
+      AND (@SoloActivos IS NULL OR EsActivo = @SoloActivos)
+    ORDER BY Descripcion;
+END
+GO
+
 
 -- ============================================================================
 -- TABLA: Administracion.EmpresaConcesionaria
@@ -1147,6 +1433,28 @@ BEGIN
     WHERE CUIT = @CUIT;
 END
 GO
+
+-- ----------------------------------------------------------------------------
+-- EmpresaConcesionaria_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Administracion.EmpresaConcesionaria_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Administracion.EmpresaConcesionaria_Listar;
+GO
+CREATE PROCEDURE Administracion.EmpresaConcesionaria_Listar
+(
+    @CUIT INT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT CUIT, RazonSocial, Email, Telefono
+    FROM Administracion.EmpresaConcesionaria
+    WHERE (@CUIT IS NULL OR CUIT = @CUIT)
+    ORDER BY RazonSocial;
+END
+GO
+
 
 -- ============================================================================
 -- TABLA: Administracion.Concesion
@@ -1270,7 +1578,8 @@ GO
 -- ----------------------------------------------------------------------------
 -- Concesion_Eliminar
 -- ----------------------------------------------------------------------------
--- BAJA LOGICA
+-- Nota: baja lógica vía cambio de Estado a 'Cancelada', ya que la concesión
+-- puede tener pagos históricos (Facturacion.PagoCanon) asociados.
 IF OBJECT_ID('Administracion.Concesion_Eliminar', 'P') IS NOT NULL
     DROP PROCEDURE Administracion.Concesion_Eliminar;
 GO
@@ -1293,6 +1602,35 @@ BEGIN
     WHERE IdConcesion = @IdConcesion;
 END
 GO
+
+-- ----------------------------------------------------------------------------
+-- Concesion_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Administracion.Concesion_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Administracion.Concesion_Listar;
+GO
+CREATE PROCEDURE Administracion.Concesion_Listar
+(
+    @IdConcesion INT = NULL,
+    @IdParque INT = NULL,
+    @Estado VARCHAR(20) = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT c.IdConcesion, c.IdEmpresaConcesionaria, ec.RazonSocial, c.IdParque, pq.Nombre AS NombreParque,
+           c.TipoDeActividad, c.FechaInicio, c.FechaFin, c.Canon, c.Estado
+    FROM Administracion.Concesion c
+    INNER JOIN Administracion.EmpresaConcesionaria ec ON ec.CUIT = c.IdEmpresaConcesionaria
+    INNER JOIN Administracion.Parque pq ON pq.IdParque = c.IdParque
+    WHERE (@IdConcesion IS NULL OR c.IdConcesion = @IdConcesion)
+      AND (@IdParque IS NULL OR c.IdParque = @IdParque)
+      AND (@Estado IS NULL OR c.Estado = @Estado)
+    ORDER BY c.FechaFin;
+END
+GO
+
 
 -- ============================================================================
 -- TABLA: Facturacion.TicketFactura
@@ -1356,7 +1694,9 @@ GO
 -- ----------------------------------------------------------------------------
 -- TicketFactura_Actualizar
 -- ----------------------------------------------------------------------------
-
+-- Nota: por tratarse de un comprobante fiscal, solo se permite actualizar la
+-- forma de pago. El resto de los datos (número, punto de venta, total, fecha)
+-- no debería modificarse una vez emitido el comprobante.
 IF OBJECT_ID('Facturacion.TicketFactura_Actualizar', 'P') IS NOT NULL
     DROP PROCEDURE Facturacion.TicketFactura_Actualizar;
 GO
@@ -1392,6 +1732,10 @@ GO
 -- ----------------------------------------------------------------------------
 -- TicketFactura_Eliminar
 -- ----------------------------------------------------------------------------
+-- Nota: un comprobante fiscal emitido no debería eliminarse físicamente.
+-- Este SP se mantiene por consistencia con el patrón ABM exigido, pero se
+-- bloquea su ejecución y se sugiere usar anulación (nota de crédito) en la
+-- lógica de negocio en su lugar.
 IF OBJECT_ID('Facturacion.TicketFactura_Eliminar', 'P') IS NOT NULL
     DROP PROCEDURE Facturacion.TicketFactura_Eliminar;
 GO
@@ -1409,10 +1753,39 @@ BEGIN
         RETURN;
     END
 
-    DELETE FROM Facturacion.TicketFactura
-    WHERE IdTicketFactura = @IdTicketFactura;
+    RAISERROR('No se permite eliminar comprobantes fiscales. Utilice el proceso de anulación correspondiente.', 16, 1);
 END
 GO
+
+-- ----------------------------------------------------------------------------
+-- TicketFactura_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Facturacion.TicketFactura_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Facturacion.TicketFactura_Listar;
+GO
+CREATE PROCEDURE Facturacion.TicketFactura_Listar
+(
+    @IdTicketFactura INT = NULL,
+    @IdParque INT = NULL,
+    @FechaDesde DATE = NULL,
+    @FechaHasta DATE = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT tf.IdTicketFactura, tf.IdParque, pq.Nombre AS NombreParque, tf.NumeroFactura,
+           tf.PuntoDeVenta, tf.FechaEmision, tf.FormaPago, tf.Total
+    FROM Facturacion.TicketFactura tf
+    INNER JOIN Administracion.Parque pq ON pq.IdParque = tf.IdParque
+    WHERE (@IdTicketFactura IS NULL OR tf.IdTicketFactura = @IdTicketFactura)
+      AND (@IdParque IS NULL OR tf.IdParque = @IdParque)
+      AND (@FechaDesde IS NULL OR tf.FechaEmision >= @FechaDesde)
+      AND (@FechaHasta IS NULL OR tf.FechaEmision <= @FechaHasta)
+    ORDER BY tf.FechaEmision DESC;
+END
+GO
+
 
 -- ============================================================================
 -- TABLA: Facturacion.TicketItemActividad
@@ -1535,6 +1908,32 @@ BEGIN
     WHERE IdItemActividad = @IdItemActividad;
 END
 GO
+
+-- ----------------------------------------------------------------------------
+-- TicketItemActividad_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Facturacion.TicketItemActividad_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Facturacion.TicketItemActividad_Listar;
+GO
+CREATE PROCEDURE Facturacion.TicketItemActividad_Listar
+(
+    @IdItemActividad INT = NULL,
+    @IdTicketFactura INT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT ti.IdItemActividad, ti.IdTicketFactura, ti.IdActividad, ac.Nombre AS NombreActividad,
+           ti.Cantidad, ti.FechaActividad, ti.Precio
+    FROM Facturacion.TicketItemActividad ti
+    INNER JOIN Administracion.Actividad ac ON ac.IdActividad = ti.IdActividad
+    WHERE (@IdItemActividad IS NULL OR ti.IdItemActividad = @IdItemActividad)
+      AND (@IdTicketFactura IS NULL OR ti.IdTicketFactura = @IdTicketFactura)
+    ORDER BY ti.FechaActividad DESC;
+END
+GO
+
 
 -- ============================================================================
 -- TABLA: Facturacion.TicketItemEntrada
@@ -1663,6 +2062,37 @@ BEGIN
 END
 GO
 
+-- ----------------------------------------------------------------------------
+-- TicketItemEntrada_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Facturacion.TicketItemEntrada_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Facturacion.TicketItemEntrada_Listar;
+GO
+CREATE PROCEDURE Facturacion.TicketItemEntrada_Listar
+(
+    @IdItemEntrada INT = NULL,
+    @IdTicketFactura INT = NULL,
+    @IdTipoVisitante INT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Nota: Subtotal es un atributo derivado (no se persiste en la tabla,
+    -- según definición del DER). Se calcula aquí como Cantidad * PrecioUnitario.
+    SELECT ie.IdItemEntrada, ie.IdTicketFactura, ie.IdTipoVisitante,
+           tv.Descripcion AS TipoVisitante, ie.Cantidad, ie.FechaAcceso,
+           ie.PrecioUnitario, (ie.Cantidad * ie.PrecioUnitario) AS Subtotal
+    FROM Facturacion.TicketItemEntrada ie
+    INNER JOIN Administracion.TipoVisitante tv ON tv.IdTipoVisitante = ie.IdTipoVisitante
+    WHERE (@IdItemEntrada IS NULL OR ie.IdItemEntrada = @IdItemEntrada)
+      AND (@IdTicketFactura IS NULL OR ie.IdTicketFactura = @IdTicketFactura)
+      AND (@IdTipoVisitante IS NULL OR ie.IdTipoVisitante = @IdTipoVisitante)
+    ORDER BY ie.FechaAcceso DESC;
+END
+GO
+
+
 -- ============================================================================
 -- TABLA: Facturacion.PrecioEntrada
 -- ============================================================================
@@ -1784,6 +2214,35 @@ BEGIN
     WHERE IdPrecio = @IdPrecio;
 END
 GO
+
+-- ----------------------------------------------------------------------------
+-- PrecioEntrada_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Facturacion.PrecioEntrada_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Facturacion.PrecioEntrada_Listar;
+GO
+CREATE PROCEDURE Facturacion.PrecioEntrada_Listar
+(
+    @IdPrecio INT = NULL,
+    @IdParque INT = NULL,
+    @IdTipoVisitante INT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT pe.IdPrecio, pe.IdParque, pq.Nombre AS NombreParque, pe.IdTipoVisitante,
+           tv.Descripcion AS TipoVisitante, pe.Precio, pe.VigenteDesde, pe.VigenteHasta
+    FROM Facturacion.PrecioEntrada pe
+    INNER JOIN Administracion.Parque pq ON pq.IdParque = pe.IdParque
+    INNER JOIN Administracion.TipoVisitante tv ON tv.IdTipoVisitante = pe.IdTipoVisitante
+    WHERE (@IdPrecio IS NULL OR pe.IdPrecio = @IdPrecio)
+      AND (@IdParque IS NULL OR pe.IdParque = @IdParque)
+      AND (@IdTipoVisitante IS NULL OR pe.IdTipoVisitante = @IdTipoVisitante)
+    ORDER BY pe.VigenteDesde DESC;
+END
+GO
+
 
 -- ============================================================================
 -- TABLA: Facturacion.PagoCanon
@@ -1916,5 +2375,33 @@ BEGIN
 
     DELETE FROM Facturacion.PagoCanon
     WHERE IdPago = @IdPago;
+END
+GO
+
+-- ----------------------------------------------------------------------------
+-- PagoCanon_Listar
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Facturacion.PagoCanon_Listar', 'P') IS NOT NULL
+    DROP PROCEDURE Facturacion.PagoCanon_Listar;
+GO
+CREATE PROCEDURE Facturacion.PagoCanon_Listar
+(
+    @IdPago INT = NULL,
+    @IdConcesion INT = NULL,
+    @Estado VARCHAR(25) = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT pc.IdPago, pc.IdConcesion, ec.RazonSocial, pc.PeriodoMesPago, pc.PeriodoAñoPago,
+           pc.Monto, pc.FechaPago, pc.Estado
+    FROM Facturacion.PagoCanon pc
+    INNER JOIN Administracion.Concesion co ON co.IdConcesion = pc.IdConcesion
+    INNER JOIN Administracion.EmpresaConcesionaria ec ON ec.CUIT = co.IdEmpresaConcesionaria
+    WHERE (@IdPago IS NULL OR pc.IdPago = @IdPago)
+      AND (@IdConcesion IS NULL OR pc.IdConcesion = @IdConcesion)
+      AND (@Estado IS NULL OR pc.Estado = @Estado)
+    ORDER BY pc.PeriodoAñoPago DESC, pc.PeriodoMesPago DESC;
 END
 GO

@@ -1,14 +1,14 @@
 USE ParquesNacionalesDB;
 GO
 
+--SP para importar los datos desde parques.csv
+
 CREATE OR ALTER PROCEDURE ImportarArchivoParqueCSV
 (
     @path VARCHAR(255)
 )
 AS
 BEGIN
-
-    SET NOCOUNT ON;
 
     DROP TABLE IF EXISTS #TempBaseCSV;
 
@@ -39,18 +39,18 @@ BEGIN
         TipoPropiedad VARCHAR(255),
         SubtipoPropiedad VARCHAR(255),
         AutoridadGestion VARCHAR(500),
-        PlanGestion VARCHAR(MAX),
+        PlanGestion VARCHAR(128),
         Verificacion VARCHAR(100),
         IdMetadato VARCHAR(100),
-        ISO3Padre VARCHAR(20),
+        ISO3Padre VARCHAR(128),
         ISO3 VARCHAR(20),
-        InfoSupplementaria VARCHAR(MAX),
-        ObjetivoConservacion VARCHAR(MAX),
+        InfoSupplementaria VARCHAR(128),
+        ObjetivoConservacion VARCHAR(128),
         AguasInteriores VARCHAR(100),
         EvaluacionOECM VARCHAR(100)
     );
 
-    DECLARE @SQL NVARCHAR(MAX);
+    DECLARE @SQL NVARCHAR(512);
 
     SET @SQL = N'
     BULK INSERT #TempBaseCSV
@@ -58,16 +58,13 @@ BEGIN
     WITH
     (
         FIRSTROW = 2,
-        FIELDTERMINATOR = '';'',
+        FIELDTERMINATOR = '','',
         ROWTERMINATOR = ''0x0a'',
-        CODEPAGE = ''65001''
+        CODEPAGE = ''65001'',
+        FORMAT = ''CSV''
     );';
 
     EXEC sp_executesql @SQL;
-
-    ------------------------------------------------------------------
-    -- TIPOS DE PARQUE NUEVOS
-    ------------------------------------------------------------------
 
     INSERT INTO Administracion.TipoParque (Descripcion)
     SELECT DISTINCT TRIM(T.Tipo)
@@ -80,10 +77,6 @@ BEGIN
           FROM Administracion.TipoParque TP
           WHERE TRIM(TP.Descripcion) = TRIM(T.Tipo)
       );
-
-    ------------------------------------------------------------------
-    -- ACTUALIZAR PARQUES EXISTENTES
-    ------------------------------------------------------------------
 
     UPDATE P
     SET
@@ -104,19 +97,14 @@ BEGIN
     INNER JOIN Administracion.TipoParque TP
         ON TRIM(TP.Descripcion) = TRIM(T.Tipo);
 
-    ------------------------------------------------------------------
-    -- INSERTAR PARQUES NUEVOS USANDO EL ABM
-    ------------------------------------------------------------------
-
-    DECLARE @Nombre VARCHAR(100);
-    DECLARE @Ubicacion VARCHAR(200);
-    DECLARE @Superficie DECIMAL(12,2);
-    DECLARE @Descripcion VARCHAR(100);
-    DECLARE @IdTipoParque INT;
-    DECLARE @IdParque INT;
-
-    DECLARE CurParques CURSOR FOR
-
+    INSERT INTO Administracion.Parque
+    (
+        Nombre,
+        Ubicacion,
+        Superficie,
+        Descripcion,
+        IdTipoParque
+    )
     SELECT
         LEFT(
             TRIM(T.Tipo) + ' - ' + TRIM(T.Nombre),
@@ -136,61 +124,14 @@ BEGIN
         WHERE TRIM(P.Ubicacion) = TRIM(T.Nombre)
     );
 
-    OPEN CurParques;
-
-    FETCH NEXT FROM CurParques
-    INTO
-        @Nombre,
-        @Ubicacion,
-        @Superficie,
-        @Descripcion,
-        @IdTipoParque;
-
-    WHILE @@FETCH_STATUS = 0
-    BEGIN
-
-        EXEC Administracion.Parque_Insertar
-            @Nombre = @Nombre,
-            @Ubicacion = @Ubicacion,
-            @Superficie = @Superficie,
-            @Descripcion = @Descripcion,
-            @IdTipoParque = @IdTipoParque,
-            @EsActivo = 1,
-            @IdParque = @IdParque OUTPUT;
-
-        FETCH NEXT FROM CurParques
-        INTO
-            @Nombre,
-            @Ubicacion,
-            @Superficie,
-            @Descripcion,
-            @IdTipoParque;
-
-    END
-
-    CLOSE CurParques;
-    DEALLOCATE CurParques;
-
 END
 GO
 
-
 EXEC ImportarArchivoParqueCSV
-'C:\temp\parque.csv'
+'C:\temp\parques.csv'
 
+--SP para crear los datos de tipo de visitante
 
-SELECT * FROM Administracion.Parque;
-SELECT * FROM Administracion.TipoParque;
-
-
-----------------------------------------------------------------------------------
-
-/*
-Hardcodeado, no creo que este bien
-(Es una tabla chica, se puede insertar solo con los SP de insert, pero quiero confirmar)
-*/
-
-   
 IF OBJECT_ID('Administracion.CargarTiposVisitante', 'P') IS NOT NULL
     DROP PROCEDURE Administracion.CargarTiposVisitante;
 GO
@@ -232,7 +173,7 @@ GO
 
 EXEC Administracion.CargarTiposVisitante;
 
----
+--SP para importar datos del archivo csv de tarifas
 
 CREATE OR ALTER PROCEDURE ImportarArchivoTarifaCSV
 (
@@ -337,6 +278,148 @@ END
 GO
 
 EXEC ImportarArchivoTarifaCSV
-    'C:\Users\aguse\Documents\temp\tarifasParques.csv';
+    'C:\temp\tarifasParques.csv';
 
 SELECT * FROM Facturacion.PrecioEntrada;
+
+
+--SP para importar datos del archivo csv de personal
+
+CREATE OR ALTER PROCEDURE ImportarArchivoPersonal
+(
+    @path VARCHAR(255)
+)
+AS
+BEGIN
+
+    SET NOCOUNT ON;
+
+    DROP TABLE IF EXISTS #TempPersonalCSV;
+
+    CREATE TABLE #TempPersonalCSV
+    (
+        DNI VARCHAR(32),
+        ApeNom VARCHAR(128),
+        escalafon VARCHAR(255),
+        tipo_contratacion VARCHAR(255),
+        organismo VARCHAR(255),
+        tipo_administracion VARCHAR(32),
+        telefono VARCHAR(32),
+        periodo VARCHAR(16)
+    );
+
+    DECLARE @SQL NVARCHAR(MAX);
+
+    SET @SQL = N'
+    BULK INSERT #TempPersonalCSV
+    FROM ''' + @path + '''
+    WITH
+    (
+        FIELDTERMINATOR = '';'',
+        ROWTERMINATOR = ''0x0a'',
+        CODEPAGE = ''65001'',
+        FIRSTROW = 2
+    );';
+
+    EXEC sp_executesql @SQL;
+
+    DELETE FROM Administracion.Personal;
+
+    DECLARE @NombreApe VARCHAR(128);
+    DECLARE @DNI INT;
+    DECLARE @Telefono BIGINT;
+    DECLARE @TipoPersonal VARCHAR(20);
+    DECLARE @IdHabilitacion INT;
+    DECLARE @IdAsignacion INT;
+
+    DECLARE CurPersonal CURSOR FOR
+
+    SELECT
+        csv.ApeNom,
+
+        TRY_CAST(REPLACE(csv.DNI, '.', '') AS INT),
+
+        TRY_CAST
+        (
+            REPLACE
+            (
+                REPLACE
+                (
+                    CASE
+                        WHEN CHARINDEX('/', csv.telefono) > 0
+                        THEN LEFT(csv.telefono, CHARINDEX('/', csv.telefono) - 1)
+                        ELSE csv.telefono
+                    END,
+                    '-',
+                    ''
+                ),
+                ' ',
+                ''
+            ) AS BIGINT
+        ),
+
+        CASE
+            WHEN UPPER(TRIM(csv.escalafon)) LIKE '%GUARDAPARQUES%'
+            THEN 'Guardaparques'
+            ELSE 'Guia'
+        END,
+
+        NULL,
+
+        NULL
+
+    FROM #TempPersonalCSV csv
+
+    WHERE csv.DNI IS NOT NULL
+      AND TRIM(csv.DNI) <> ''
+      AND UPPER(csv.organismo) LIKE '%PARQUES NACIONALES%';
+
+    OPEN CurPersonal;
+
+    FETCH NEXT FROM CurPersonal
+    INTO
+        @NombreApe,
+        @DNI,
+        @Telefono,
+        @TipoPersonal,
+        @IdHabilitacion,
+        @IdAsignacion;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+
+        EXEC Administracion.Personal_Insertar
+            @NombreApe = @NombreApe,
+            @DNI = @DNI,
+            @FechaNacimiento = NULL,
+            @Email = NULL,
+            @Telefono = @Telefono,
+            @TipoPersonal = @TipoPersonal,
+            @EsActivo = 1,
+            @IdHabilitacion = @IdHabilitacion,
+            @IdAsignacion = @IdAsignacion;
+
+        FETCH NEXT FROM CurPersonal
+        INTO
+            @NombreApe,
+            @DNI,
+            @Telefono,
+            @TipoPersonal,
+            @IdHabilitacion,
+            @IdAsignacion;
+
+    END
+
+    CLOSE CurPersonal;
+    DEALLOCATE CurPersonal;
+
+END
+GO
+
+EXEC ImportarArchivoPersonal
+    'C:\temp\personal.csv'
+
+
+
+
+
