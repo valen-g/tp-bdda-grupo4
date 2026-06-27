@@ -61,7 +61,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.TipoParque WHERE IdTipoParque = @IdTipoParque)
         SET @Errores += 'No existe un tipo de parque con el Id indicado. ';
@@ -92,7 +92,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.TipoParque WHERE IdTipoParque = @IdTipoParque)
         SET @Errores += 'No existe un tipo de parque con el Id indicado. ';
@@ -178,7 +178,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.Parque WHERE IdParque = @IdParque)
         SET @Errores += 'No existe un parque con el Id indicado. ';
@@ -258,7 +258,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.Parque WHERE IdParque = @IdParque)
         SET @Errores += 'El parque indicado no existe. ';
@@ -294,7 +294,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.AsignacionParque WHERE IdAsignacion = @IdAsignacion)
         SET @Errores += 'No existe una asignación con el Id indicado. ';
@@ -331,7 +331,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.AsignacionParque WHERE IdAsignacion = @IdAsignacion)
         SET @Errores += 'No existe una asignación con el Id indicado. ';
@@ -391,7 +391,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF @Descripcion IS NULL OR LTRIM(RTRIM(@Descripcion)) = ''
         SET @Errores += 'La descripción de la habilitación es obligatoria. ';
@@ -432,7 +432,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.Habilitacion WHERE IdHabilitacion = @IdHabilitacion)
         SET @Errores += 'No existe una habilitación con el Id indicado. ';
@@ -468,7 +468,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.Habilitacion WHERE IdHabilitacion = @IdHabilitacion)
         SET @Errores += 'No existe una habilitación con el Id indicado. ';
@@ -529,7 +529,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF @DNI IS NULL
         SET @Errores += 'El DNI es obligatorio. ';
@@ -617,7 +617,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS
     (
@@ -720,7 +720,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF @IdParque IS NULL OR NOT EXISTS (SELECT 1 FROM Administracion.Parque WHERE IdParque = @IdParque)
         SET @Errores += 'El parque indicado no existe. ';
@@ -774,7 +774,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.Actividad WHERE IdActividad = @IdActividad)
         SET @Errores += 'No existe una actividad con el Id indicado. ';
@@ -884,7 +884,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.Personal WHERE DNI = @DniPersonal)
         SET @Errores += 'El DNI de personal indicado no existe. ';
@@ -926,7 +926,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.ActividadGuia WHERE DniPersonal = @DniPersonal AND IdActividad = @IdActividad)
         SET @Errores += 'No existe un registro de este guía para esta actividad. ';
@@ -1020,7 +1020,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF @Descripcion IS NULL OR LTRIM(RTRIM(@Descripcion)) = ''
         SET @Errores += 'La descripción del tipo de visitante es obligatoria. ';
@@ -1053,7 +1053,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.TipoVisitante WHERE IdTipoVisitante = @IdTipoVisitante)
         SET @Errores += 'No existe un tipo de visitante con el Id indicado. ';
@@ -1089,7 +1089,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.TipoVisitante WHERE IdTipoVisitante = @IdTipoVisitante)
         SET @Errores += 'No existe un tipo de visitante con el Id indicado. ';
@@ -1150,7 +1150,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF @CUIT IS NULL
         SET @Errores += 'El CUIT es obligatorio. ';
@@ -1187,7 +1187,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.EmpresaConcesionaria WHERE CUIT = @CUIT)
         SET @Errores += 'No existe una empresa registrada con ese CUIT. ';
@@ -1222,7 +1222,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.EmpresaConcesionaria WHERE CUIT = @CUIT)
         SET @Errores += 'No existe una empresa registrada con ese CUIT. ';
@@ -1264,7 +1264,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.EmpresaConcesionaria WHERE CUIT = @IdEmpresaConcesionaria)
         SET @Errores += 'La empresa concesionaria indicada no existe. ';
@@ -1317,7 +1317,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Administracion.Concesion WHERE IdConcesion = @IdConcesion)
         SET @Errores += 'No existe una concesión con el Id indicado. ';
@@ -1427,7 +1427,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF @IdParque IS NULL OR NOT EXISTS (SELECT 1 FROM Administracion.Parque WHERE IdParque = @IdParque)
         SET @Errores += 'El parque indicado no existe. ';
@@ -1477,7 +1477,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Facturacion.TicketFactura WHERE IdTicketFactura = @IdTicketFactura)
         SET @Errores += 'No existe un ticket/factura con el Id indicado. ';
@@ -1569,7 +1569,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Facturacion.TicketFactura WHERE IdTicketFactura = @IdTicketFactura)
         SET @Errores += 'El ticket/factura indicado no existe. ';
@@ -1615,7 +1615,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Facturacion.TicketItemActividad WHERE IdItemActividad = @IdItemActividad)
         SET @Errores += 'No existe un ítem de actividad con el Id indicado. ';
@@ -1705,7 +1705,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF @IdTicketFactura IS NULL OR NOT EXISTS (SELECT 1 FROM Facturacion.TicketFactura WHERE IdTicketFactura = @IdTicketFactura)
         SET @Errores += 'El ticket/factura indicado no existe. ';
@@ -1752,7 +1752,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Facturacion.TicketItemEntrada WHERE IdItemEntrada = @IdItemEntrada)
         SET @Errores += 'No existe un ítem de entrada con el Id indicado. ';
@@ -1851,7 +1851,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF @IdParque IS NULL OR NOT EXISTS (SELECT 1 FROM Administracion.Parque WHERE IdParque = @IdParque)
         SET @Errores += 'El parque indicado no existe. ';
@@ -1898,7 +1898,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Facturacion.PrecioEntrada WHERE IdPrecio = @IdPrecio)
         SET @Errores += 'No existe un precio de entrada con el Id indicado. ';
@@ -1992,7 +1992,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF @IdConcesion IS NULL OR NOT EXISTS (SELECT 1 FROM Administracion.Concesion WHERE IdConcesion = @IdConcesion)
         SET @Errores += 'La concesión indicada no existe. ';
@@ -2049,7 +2049,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(255) = '';
 
     IF NOT EXISTS (SELECT 1 FROM Facturacion.PagoCanon WHERE IdPago = @IdPago)
         SET @Errores += 'No existe un pago de canon con el Id indicado. ';
