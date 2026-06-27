@@ -324,3 +324,17 @@ BEGIN
     );
 END
 GO
+
+-- ----------------------------------------------------------------------------
+-- LogRegistros
+-- ----------------------------------------------------------------------------
+IF OBJECT_ID('Administracion.LogRegistros', 'U') IS NULL
+BEGIN
+    CREATE TABLE Administracion.LogRegistros
+    (
+        ID INT IDENTITY(1,1) PRIMARY KEY,
+        NumeroRegistroError INT,
+        Descripcion VARCHAR(255),
+        FechaRegistro DATETIME DEFAULT GETDATE()
+    );
+END

@@ -1,36 +1,19 @@
 /*
 ================================================================================
-    Universidad     : [PLACEHOLDER - Nombre de la Universidad]
-    Materia         : 3641 - Bases de Datos Aplicada
-    Trabajo Práctico: Sistema de Gestión para Parques Nacionales
-    Grupo           : [PLACEHOLDER - Numero de Grupo]
-    Integrantes     : [PLACEHOLDER - Apellido, Nombre]
-                       [PLACEHOLDER - Apellido, Nombre]
-                       [PLACEHOLDER - Apellido, Nombre]
-    Profesor/es     : [PLACEHOLDER - Apellido, Nombre]
-    Fecha           : [PLACEHOLDER - DD/MM/AAAA]
+# Universidad: Universidad Nacional de La Matanza
+# Materia: 3641 - Bases de Datos Aplicada
+# Grupo: Grupo 4
+# Integrantes:
+- Belloni, Nicolas
+- Bernardo, Ivan
+- Gonzalez, Agustin
+- Gallo, Valentina
+
+# Fecha: 05/06/2026
 --------------------------------------------------------------------------------
     Script          : 03_StoredProcedures_ABM.sql
     Objetivo        : Crear los Stored Procedures de Alta, Baja, Modificación
-                       y Listado (ABM) para cada tabla del sistema. Ninguna
-                       operación de alta/baja/modificación sobre las tablas debe
-                       realizarse por acceso directo: todo el acceso se
-                       encapsula en estos procedimientos.
-
-    Norma de nomenclatura para esta entrega:
-        NombreTabla_Insertar   -> Alta de un registro
-        NombreTabla_Actualizar -> Modificación de un registro existente
-        NombreTabla_Eliminar   -> Baja de un registro (física, salvo se
-                                   indique lo contrario en el comentario del SP)
-        NombreTabla_Listar     -> Listado/consulta de registros
-
-    Requiere haber ejecutado previamente:
-        01_CreacionBaseDatosEsquemas.sql
-        02_CreacionTablas.sql
-
-    NOTA: Los SP de Administracion.TipoVisitante están incluidos por
-    completitud, pero esa tabla no podrá crearse hasta resolver el problema
-    de orden/modelo documentado en 02_CreacionTablas.sql. Ver comentario allí.
+                       y Listado (ABM) para cada tabla del sistema.
 ================================================================================
 */
 
@@ -44,10 +27,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TipoParque_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.TipoParque_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.TipoParque_Insertar;
-GO
-CREATE PROCEDURE Administracion.TipoParque_Insertar
+CREATE OR ALTER PROCEDURE Administracion.TipoParque_Insertar
 (
     @Descripcion VARCHAR(100),
     @IdTipoParque INT OUTPUT
@@ -72,10 +52,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TipoParque_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.TipoParque_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.TipoParque_Actualizar;
-GO
-CREATE PROCEDURE Administracion.TipoParque_Actualizar
+CREATE OR ALTER PROCEDURE Administracion.TipoParque_Actualizar
 (
     @IdTipoParque INT,
     @Descripcion VARCHAR(100)
@@ -107,10 +84,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TipoParque_Eliminar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.TipoParque_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.TipoParque_Eliminar;
-GO
-CREATE PROCEDURE Administracion.TipoParque_Eliminar
+CREATE OR ALTER PROCEDURE Administracion.TipoParque_Eliminar
 (
     @IdTipoParque INT
 )
@@ -137,28 +111,6 @@ BEGIN
 END
 GO
 
--- ----------------------------------------------------------------------------
--- TipoParque_Listar
--- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.TipoParque_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.TipoParque_Listar;
-GO
-CREATE PROCEDURE Administracion.TipoParque_Listar
-(
-    @IdTipoParque INT = NULL
-)
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    SELECT IdTipoParque, Descripcion
-    FROM Administracion.TipoParque
-    WHERE (@IdTipoParque IS NULL OR IdTipoParque = @IdTipoParque)
-    ORDER BY Descripcion;
-END
-GO
-
-
 -- ============================================================================
 -- TABLA: Administracion.Parque
 -- ============================================================================
@@ -166,24 +118,21 @@ GO
 -- ----------------------------------------------------------------------------
 -- Parque_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Parque_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Parque_Insertar;
-GO
-CREATE PROCEDURE Administracion.Parque_Insertar
+
+CREATE OR ALTER PROCEDURE Administracion.Parque_Insertar
 (
     @Nombre VARCHAR(100),
     @Ubicacion VARCHAR(200),
     @Superficie DECIMAL(12,2),
     @Descripcion VARCHAR(100) = NULL,
     @IdTipoParque INT = NULL,
-    @EsActivo BIT = 1,
-    @IdParque INT OUTPUT
+    @EsActivo BIT = 1
 )
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @Errores VARCHAR(MAX) = '';
+    DECLARE @Errores VARCHAR(128) = '';
 
     IF @Nombre IS NULL OR LTRIM(RTRIM(@Nombre)) = ''
         SET @Errores += 'El nombre del parque es obligatorio. ';
@@ -191,11 +140,14 @@ BEGIN
     IF @Ubicacion IS NULL OR LTRIM(RTRIM(@Ubicacion)) = ''
         SET @Errores += 'La ubicación del parque es obligatoria. ';
 
-    IF @Superficie IS NULL OR @Superficie <= 0
+    IF @Superficie IS NULL OR @Superficie < 0
         SET @Errores += 'La superficie debe ser un valor mayor a 0. ';
 
     IF @IdTipoParque IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Administracion.TipoParque WHERE IdTipoParque = @IdTipoParque)
         SET @Errores += 'El tipo de parque indicado no existe. ';
+
+    IF EXISTS (SELECT 1 FROM Administracion.Parque p WHERE @Nombre = p.nombre AND p.EsActivo = 1)
+        SET @Errores += 'Ya existe parque con ese nombre. ';
 
     IF @Errores <> ''
     BEGIN
@@ -206,17 +158,13 @@ BEGIN
     INSERT INTO Administracion.Parque (Nombre, Ubicacion, Superficie, Descripcion, IdTipoParque, EsActivo)
     VALUES (@Nombre, @Ubicacion, @Superficie, @Descripcion, @IdTipoParque, @EsActivo);
 
-    SET @IdParque = SCOPE_IDENTITY();
 END
 GO
 
 -- ----------------------------------------------------------------------------
 -- Parque_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Parque_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Parque_Actualizar;
-GO
-CREATE PROCEDURE Administracion.Parque_Actualizar
+CREATE OR ALTER PROCEDURE Administracion.Parque_Actualizar
 (
     @IdParque INT,
     @Nombre VARCHAR(100),
@@ -241,7 +189,7 @@ BEGIN
     IF @Ubicacion IS NULL OR LTRIM(RTRIM(@Ubicacion)) = ''
         SET @Errores += 'La ubicación del parque es obligatoria. ';
 
-    IF @Superficie IS NULL OR @Superficie <= 0
+    IF @Superficie IS NULL OR @Superficie < 0
         SET @Errores += 'La superficie debe ser un valor mayor a 0. ';
 
     IF @IdTipoParque IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Administracion.TipoParque WHERE IdTipoParque = @IdTipoParque)
@@ -271,10 +219,7 @@ GO
 -- que Parque es referenciado por múltiples tablas (Actividad, TicketFactura,
 -- Concesion, PrecioEntrada, AsignacionParque) y su eliminación física
 -- comprometería la integridad del historial del sistema.
-IF OBJECT_ID('Administracion.Parque_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Parque_Eliminar;
-GO
-CREATE PROCEDURE Administracion.Parque_Eliminar
+CREATE OR ALTER PROCEDURE Administracion.Parque_Eliminar
 (
     @IdParque INT
 )
@@ -294,32 +239,6 @@ BEGIN
 END
 GO
 
--- ----------------------------------------------------------------------------
--- Parque_Listar
--- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Parque_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Parque_Listar;
-GO
-CREATE PROCEDURE Administracion.Parque_Listar
-(
-    @IdParque INT = NULL,
-    @SoloActivos BIT = NULL
-)
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    SELECT p.IdParque, p.Nombre, p.Ubicacion, p.Superficie, p.Descripcion,
-           p.IdTipoParque, tp.Descripcion AS TipoParque, p.EsActivo
-    FROM Administracion.Parque p
-    LEFT JOIN Administracion.TipoParque tp ON tp.IdTipoParque = p.IdTipoParque
-    WHERE (@IdParque IS NULL OR p.IdParque = @IdParque)
-      AND (@SoloActivos IS NULL OR p.EsActivo = @SoloActivos)
-    ORDER BY p.Nombre;
-END
-GO
-
-
 -- ============================================================================
 -- TABLA: Administracion.AsignacionParque
 -- ============================================================================
@@ -327,10 +246,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- AsignacionParque_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.AsignacionParque_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.AsignacionParque_Insertar;
-GO
-CREATE PROCEDURE Administracion.AsignacionParque_Insertar
+CREATE OR ALTER PROCEDURE Administracion.AsignacionParque_Insertar
 (
     @IdParque INT,
     @FechaIngreso DATE = NULL,
@@ -366,10 +282,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- AsignacionParque_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.AsignacionParque_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.AsignacionParque_Actualizar;
-GO
-CREATE PROCEDURE Administracion.AsignacionParque_Actualizar
+CREATE OR ALTER PROCEDURE Administracion.AsignacionParque_Actualizar
 (
     @IdAsignacion INT,
     @IdParque INT,
@@ -410,10 +323,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- AsignacionParque_Eliminar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.AsignacionParque_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.AsignacionParque_Eliminar;
-GO
-CREATE PROCEDURE Administracion.AsignacionParque_Eliminar
+CREATE OR ALTER PROCEDURE Administracion.AsignacionParque_Eliminar
 (
     @IdAsignacion INT
 )
@@ -443,10 +353,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- AsignacionParque_Listar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.AsignacionParque_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.AsignacionParque_Listar;
-GO
-CREATE PROCEDURE Administracion.AsignacionParque_Listar
+CREATE OR ALTER PROCEDURE Administracion.AsignacionParque_Listar
 (
     @IdAsignacion INT = NULL,
     @IdParque INT = NULL
@@ -473,10 +380,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Habilitacion_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Habilitacion_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Habilitacion_Insertar;
-GO
-CREATE PROCEDURE Administracion.Habilitacion_Insertar
+CREATE OR ALTER PROCEDURE Administracion.Habilitacion_Insertar
 (
     @Descripcion VARCHAR(100),
     @FechaOtorgamiento DATE,
@@ -517,10 +421,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Habilitacion_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Habilitacion_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Habilitacion_Actualizar;
-GO
-CREATE PROCEDURE Administracion.Habilitacion_Actualizar
+CREATE OR ALTER PROCEDURE Administracion.Habilitacion_Actualizar
 (
     @IdHabilitacion INT,
     @Descripcion VARCHAR(100),
@@ -559,10 +460,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Habilitacion_Eliminar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Habilitacion_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Habilitacion_Eliminar;
-GO
-CREATE PROCEDURE Administracion.Habilitacion_Eliminar
+CREATE OR ALTER PROCEDURE Administracion.Habilitacion_Eliminar
 (
     @IdHabilitacion INT
 )
@@ -592,10 +490,8 @@ GO
 -- ----------------------------------------------------------------------------
 -- Habilitacion_Listar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Habilitacion_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Habilitacion_Listar;
-GO
-CREATE PROCEDURE Administracion.Habilitacion_Listar
+
+CREATE OR ALTER PROCEDURE Administracion.Habilitacion_Listar
 (
     @IdHabilitacion INT = NULL
 )
@@ -619,7 +515,7 @@ GO
 -- ----------------------------------------------------------------------------
 CREATE OR ALTER PROCEDURE Administracion.Personal_Insertar
 (
-    @NombreApe VARCHAR(128),
+    @NombreApellido VARCHAR(128),
     @DNI INT,
     @FechaNacimiento DATE = NULL,
     @Email VARCHAR(50) = NULL,
@@ -645,7 +541,7 @@ BEGIN
     )
         SET @Errores += 'Ya existe una persona registrada con ese DNI. ';
 
-    IF @NombreApe IS NULL OR TRIM(@NombreApe) = ''
+    IF @NombreApellido IS NULL OR TRIM(@NombreApellido) = ''
         SET @Errores += 'El nombre y apellido son obligatorios. ';
 
     IF @TipoPersonal IS NULL OR TRIM(@TipoPersonal) = ''
@@ -677,7 +573,7 @@ BEGIN
 
     INSERT INTO Administracion.Personal
     (
-        NombreApe,
+        NombreApellido,
         DNI,
         FechaNacimiento,
         Email,
@@ -689,7 +585,7 @@ BEGIN
     )
     VALUES
     (
-        @NombreApe,
+        @NombreApellido,
         @DNI,
         @FechaNacimiento,
         @Email,
@@ -705,14 +601,10 @@ GO
 -- ----------------------------------------------------------------------------
 -- Personal_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Personal_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Personal_Actualizar;
-GO
-
 CREATE OR ALTER PROCEDURE Administracion.Personal_Actualizar
 (
     @DNI INT,
-    @NombreApe VARCHAR(128),
+    @NombreApellido VARCHAR(128),
     @FechaNacimiento DATE = NULL,
     @Email VARCHAR(50) = NULL,
     @Telefono BIGINT = NULL,
@@ -735,7 +627,7 @@ BEGIN
     )
         SET @Errores += 'No existe personal registrado con ese DNI. ';
 
-    IF @NombreApe IS NULL OR TRIM(@NombreApe) = ''
+    IF @NombreApellido IS NULL OR TRIM(@NombreApellido) = ''
         SET @Errores += 'El nombre y apellido son obligatorios. ';
 
     IF @TipoPersonal IS NULL OR TRIM(@TipoPersonal) = ''
@@ -767,7 +659,7 @@ BEGIN
 
     UPDATE Administracion.Personal
     SET
-        NombreApe = @NombreApe,
+        NombreApellido = @NombreApellido,
         FechaNacimiento = @FechaNacimiento,
         Email = @Email,
         Telefono = @Telefono,
@@ -785,10 +677,6 @@ GO
 -- Nota: se realiza baja lógica (EsActivo = 0), ya que Personal puede estar
 -- referenciado en ActividadGuia (historial de tours dictados) y eliminarlo
 -- físicamente rompería la trazabilidad histórica exigida por el TP.
-IF OBJECT_ID('Administracion.Personal_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Personal_Eliminar;
-GO
-
 CREATE OR ALTER PROCEDURE Administracion.Personal_Eliminar
 (
     @DNI INT
@@ -809,42 +697,6 @@ BEGIN
 END
 GO
 
--- ----------------------------------------------------------------------------
--- Personal_Listar
--- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Personal_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Personal_Listar;
-GO
-
-CREATE OR ALTER PROCEDURE Administracion.Personal_Listar
-(
-    @DNI INT = NULL,
-    @TipoPersonal VARCHAR(20) = NULL,
-    @SoloActivos BIT = NULL
-)
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    SELECT
-        pe.DNI, pe.NombreApe,
-        pe.FechaNacimiento, pe.Email,
-        pe.Telefono, pe.TipoPersonal,
-        pe.EsActivo, pe.IdHabilitacion,
-        pe.IdAsignacion, ap.IdParque,
-        pq.Nombre AS NombreParque
-    FROM Administracion.Personal pe
-    LEFT JOIN Administracion.AsignacionParque ap
-        ON ap.IdAsignacion = pe.IdAsignacion
-    LEFT JOIN Administracion.Parque pq
-        ON pq.IdParque = ap.IdParque
-    WHERE (@DNI IS NULL OR pe.DNI = @DNI)
-      AND (@TipoPersonal IS NULL OR pe.TipoPersonal = @TipoPersonal)
-      AND (@SoloActivos IS NULL OR pe.EsActivo = @SoloActivos)
-    ORDER BY pe.NombreApe;
-END
-GO
-
 -- ============================================================================
 -- TABLA: Administracion.Actividad
 -- ============================================================================
@@ -852,10 +704,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Actividad_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Actividad_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Actividad_Insertar;
-GO
-CREATE PROCEDURE Administracion.Actividad_Insertar
+CREATE OR ALTER PROCEDURE Administracion.Actividad_Insertar
 (
     @IdParque INT,
     @Nombre VARCHAR(150),
@@ -909,10 +758,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Actividad_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Actividad_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Actividad_Actualizar;
-GO
-CREATE PROCEDURE Administracion.Actividad_Actualizar
+CREATE OR ALTER PROCEDURE Administracion.Actividad_Actualizar
 (
     @IdActividad INT,
     @IdParque INT,
@@ -972,10 +818,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Nota: baja lógica, ya que la actividad puede tener historial de ventas
 -- (TicketItemActividad) y guías asociados (ActividadGuia).
-IF OBJECT_ID('Administracion.Actividad_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Actividad_Eliminar;
-GO
-CREATE PROCEDURE Administracion.Actividad_Eliminar
+CREATE OR ALTER PROCEDURE Administracion.Actividad_Eliminar
 (
     @IdActividad INT
 )
@@ -998,10 +841,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Actividad_Listar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Actividad_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Actividad_Listar;
-GO
-CREATE PROCEDURE Administracion.Actividad_Listar
+CREATE OR ALTER PROCEDURE Administracion.Actividad_Listar
 (
     @IdActividad INT = NULL,
     @IdParque INT = NULL,
@@ -1033,10 +873,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- ActividadGuia_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.ActividadGuia_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.ActividadGuia_Insertar;
-GO
-CREATE PROCEDURE Administracion.ActividadGuia_Insertar
+CREATE OR ALTER PROCEDURE Administracion.ActividadGuia_Insertar
 (
     @DniPersonal INT,
     @IdActividad INT,
@@ -1078,10 +915,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- ActividadGuia_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.ActividadGuia_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.ActividadGuia_Actualizar;
-GO
-CREATE PROCEDURE Administracion.ActividadGuia_Actualizar
+CREATE OR ALTER PROCEDURE Administracion.ActividadGuia_Actualizar
 (
     @DniPersonal INT,
     @IdActividad INT,
@@ -1119,10 +953,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- ActividadGuia_Eliminar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.ActividadGuia_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.ActividadGuia_Eliminar;
-GO
-CREATE PROCEDURE Administracion.ActividadGuia_Eliminar
+CREATE OR ALTER PROCEDURE Administracion.ActividadGuia_Eliminar
 (
     @DniPersonal INT,
     @IdActividad INT
@@ -1145,10 +976,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- ActividadGuia_Listar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.ActividadGuia_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.ActividadGuia_Listar;
-GO
-CREATE PROCEDURE Administracion.ActividadGuia_Listar
+CREATE OR ALTER PROCEDURE Administracion.ActividadGuia_Listar
 (
     @DniPersonal INT = NULL,
     @IdActividad INT = NULL
@@ -1157,7 +985,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    SELECT ag.DniPersonal, pe.Nombre, pe.Apellido, ag.IdActividad, ac.Nombre AS NombreActividad,
+    SELECT ag.DniPersonal, pe.NombreApellido, ag.IdActividad, ac.Nombre AS NombreActividad,
            ag.FechaDesde, ag.FechaHasta
     FROM Administracion.ActividadGuia ag
     INNER JOIN Administracion.Personal pe ON pe.DNI = ag.DniPersonal
@@ -1182,10 +1010,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TipoVisitante_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.TipoVisitante_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.TipoVisitante_Insertar;
-GO
-CREATE PROCEDURE Administracion.TipoVisitante_Insertar
+CREATE OR ALTER PROCEDURE Administracion.TipoVisitante_Insertar
 (
     @Descripcion VARCHAR(100),
     @EsActivo BIT = 1,
@@ -1218,10 +1043,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TipoVisitante_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.TipoVisitante_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.TipoVisitante_Actualizar;
-GO
-CREATE PROCEDURE Administracion.TipoVisitante_Actualizar
+CREATE OR ALTER PROCEDURE Administracion.TipoVisitante_Actualizar
 (
     @IdTipoVisitante INT,
     @Descripcion VARCHAR(100),
@@ -1259,10 +1081,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Nota: se valida contra Facturacion.PrecioEntrada y Facturacion.TicketItemEntrada,
 -- ya que ambas referencian a este tipo de visitante.
-IF OBJECT_ID('Administracion.TipoVisitante_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.TipoVisitante_Eliminar;
-GO
-CREATE PROCEDURE Administracion.TipoVisitante_Eliminar
+CREATE OR ALTER PROCEDURE Administracion.TipoVisitante_Eliminar
 (
     @IdTipoVisitante INT
 )
@@ -1295,10 +1114,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TipoVisitante_Listar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.TipoVisitante_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.TipoVisitante_Listar;
-GO
-CREATE PROCEDURE Administracion.TipoVisitante_Listar
+CREATE OR ALTER PROCEDURE Administracion.TipoVisitante_Listar
 (
     @IdTipoVisitante INT = NULL,
     @SoloActivos BIT = NULL
@@ -1323,10 +1139,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- EmpresaConcesionaria_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.EmpresaConcesionaria_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.EmpresaConcesionaria_Insertar;
-GO
-CREATE PROCEDURE Administracion.EmpresaConcesionaria_Insertar
+CREATE OR ALTER PROCEDURE Administracion.EmpresaConcesionaria_Insertar
 (
     @CUIT INT,
     @RazonSocial VARCHAR(50),
@@ -1363,10 +1176,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- EmpresaConcesionaria_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.EmpresaConcesionaria_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.EmpresaConcesionaria_Actualizar;
-GO
-CREATE PROCEDURE Administracion.EmpresaConcesionaria_Actualizar
+CREATE OR ALTER PROCEDURE Administracion.EmpresaConcesionaria_Actualizar
 (
     @CUIT INT,
     @RazonSocial VARCHAR(50),
@@ -1404,10 +1214,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- EmpresaConcesionaria_Eliminar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.EmpresaConcesionaria_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.EmpresaConcesionaria_Eliminar;
-GO
-CREATE PROCEDURE Administracion.EmpresaConcesionaria_Eliminar
+CREATE OR ALTER PROCEDURE Administracion.EmpresaConcesionaria_Eliminar
 (
     @CUIT INT
 )
@@ -1434,27 +1241,6 @@ BEGIN
 END
 GO
 
--- ----------------------------------------------------------------------------
--- EmpresaConcesionaria_Listar
--- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.EmpresaConcesionaria_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.EmpresaConcesionaria_Listar;
-GO
-CREATE PROCEDURE Administracion.EmpresaConcesionaria_Listar
-(
-    @CUIT INT = NULL
-)
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    SELECT CUIT, RazonSocial, Email, Telefono
-    FROM Administracion.EmpresaConcesionaria
-    WHERE (@CUIT IS NULL OR CUIT = @CUIT)
-    ORDER BY RazonSocial;
-END
-GO
-
 
 -- ============================================================================
 -- TABLA: Administracion.Concesion
@@ -1463,10 +1249,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Concesion_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Concesion_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Concesion_Insertar;
-GO
-CREATE PROCEDURE Administracion.Concesion_Insertar
+CREATE OR ALTER PROCEDURE Administracion.Concesion_Insertar
 (
     @IdEmpresaConcesionaria INT,
     @IdParque INT,
@@ -1519,10 +1302,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Concesion_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Concesion_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Concesion_Actualizar;
-GO
-CREATE PROCEDURE Administracion.Concesion_Actualizar
+CREATE OR ALTER PROCEDURE Administracion.Concesion_Actualizar
 (
     @IdConcesion INT,
     @IdEmpresaConcesionaria INT,
@@ -1580,10 +1360,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Nota: baja lógica vía cambio de Estado a 'Cancelada', ya que la concesión
 -- puede tener pagos históricos (Facturacion.PagoCanon) asociados.
-IF OBJECT_ID('Administracion.Concesion_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Concesion_Eliminar;
-GO
-CREATE PROCEDURE Administracion.Concesion_Eliminar
+CREATE OR ALTER PROCEDURE Administracion.Concesion_Eliminar
 (
     @IdConcesion INT
 )
@@ -1606,10 +1383,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Concesion_Listar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Administracion.Concesion_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Administracion.Concesion_Listar;
-GO
-CREATE PROCEDURE Administracion.Concesion_Listar
+CREATE OR ALTER PROCEDURE Administracion.Concesion_Listar
 (
     @IdConcesion INT = NULL,
     @IdParque INT = NULL,
@@ -1639,10 +1413,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TicketFactura_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.TicketFactura_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.TicketFactura_Insertar;
-GO
-CREATE PROCEDURE Facturacion.TicketFactura_Insertar
+CREATE OR ALTER PROCEDURE Facturacion.TicketFactura_Insertar
 (
     @IdParque INT,
     @NumeroFactura VARCHAR(20),
@@ -1697,10 +1468,7 @@ GO
 -- Nota: por tratarse de un comprobante fiscal, solo se permite actualizar la
 -- forma de pago. El resto de los datos (número, punto de venta, total, fecha)
 -- no debería modificarse una vez emitido el comprobante.
-IF OBJECT_ID('Facturacion.TicketFactura_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.TicketFactura_Actualizar;
-GO
-CREATE PROCEDURE Facturacion.TicketFactura_Actualizar
+CREATE OR ALTER PROCEDURE Facturacion.TicketFactura_Actualizar
 (
     @IdTicketFactura INT,
     @FormaPago VARCHAR(20)
@@ -1736,10 +1504,7 @@ GO
 -- Este SP se mantiene por consistencia con el patrón ABM exigido, pero se
 -- bloquea su ejecución y se sugiere usar anulación (nota de crédito) en la
 -- lógica de negocio en su lugar.
-IF OBJECT_ID('Facturacion.TicketFactura_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.TicketFactura_Eliminar;
-GO
-CREATE PROCEDURE Facturacion.TicketFactura_Eliminar
+CREATE OR ALTER PROCEDURE Facturacion.TicketFactura_Eliminar
 (
     @IdTicketFactura INT
 )
@@ -1760,10 +1525,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TicketFactura_Listar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.TicketFactura_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.TicketFactura_Listar;
-GO
-CREATE PROCEDURE Facturacion.TicketFactura_Listar
+CREATE OR ALTER PROCEDURE Facturacion.TicketFactura_Listar
 (
     @IdTicketFactura INT = NULL,
     @IdParque INT = NULL,
@@ -1794,10 +1556,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TicketItemActividad_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.TicketItemActividad_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.TicketItemActividad_Insertar;
-GO
-CREATE PROCEDURE Facturacion.TicketItemActividad_Insertar
+CREATE OR ALTER PROCEDURE Facturacion.TicketItemActividad_Insertar
 (
     @IdTicketFactura INT,
     @IdActividad INT,
@@ -1845,10 +1604,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TicketItemActividad_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.TicketItemActividad_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.TicketItemActividad_Actualizar;
-GO
-CREATE PROCEDURE Facturacion.TicketItemActividad_Actualizar
+CREATE OR ALTER PROCEDURE Facturacion.TicketItemActividad_Actualizar
 (
     @IdItemActividad INT,
     @Cantidad INT,
@@ -1887,10 +1643,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TicketItemActividad_Eliminar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.TicketItemActividad_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.TicketItemActividad_Eliminar;
-GO
-CREATE PROCEDURE Facturacion.TicketItemActividad_Eliminar
+CREATE OR ALTER PROCEDURE Facturacion.TicketItemActividad_Eliminar
 (
     @IdItemActividad INT
 )
@@ -1912,10 +1665,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TicketItemActividad_Listar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.TicketItemActividad_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.TicketItemActividad_Listar;
-GO
-CREATE PROCEDURE Facturacion.TicketItemActividad_Listar
+CREATE OR ALTER PROCEDURE Facturacion.TicketItemActividad_Listar
 (
     @IdItemActividad INT = NULL,
     @IdTicketFactura INT = NULL
@@ -1942,10 +1692,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TicketItemEntrada_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.TicketItemEntrada_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.TicketItemEntrada_Insertar;
-GO
-CREATE PROCEDURE Facturacion.TicketItemEntrada_Insertar
+CREATE OR ALTER PROCEDURE Facturacion.TicketItemEntrada_Insertar
 (
     @IdTicketFactura INT,
     @IdTipoVisitante INT,
@@ -1993,10 +1740,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TicketItemEntrada_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.TicketItemEntrada_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.TicketItemEntrada_Actualizar;
-GO
-CREATE PROCEDURE Facturacion.TicketItemEntrada_Actualizar
+CREATE OR ALTER PROCEDURE Facturacion.TicketItemEntrada_Actualizar
 (
     @IdItemEntrada INT,
     @IdTipoVisitante INT,
@@ -2040,10 +1784,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TicketItemEntrada_Eliminar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.TicketItemEntrada_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.TicketItemEntrada_Eliminar;
-GO
-CREATE PROCEDURE Facturacion.TicketItemEntrada_Eliminar
+CREATE OR ALTER PROCEDURE Facturacion.TicketItemEntrada_Eliminar
 (
     @IdItemEntrada INT
 )
@@ -2065,10 +1806,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- TicketItemEntrada_Listar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.TicketItemEntrada_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.TicketItemEntrada_Listar;
-GO
-CREATE PROCEDURE Facturacion.TicketItemEntrada_Listar
+CREATE OR ALTER PROCEDURE Facturacion.TicketItemEntrada_Listar
 (
     @IdItemEntrada INT = NULL,
     @IdTicketFactura INT = NULL,
@@ -2100,10 +1838,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- PrecioEntrada_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.PrecioEntrada_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.PrecioEntrada_Insertar;
-GO
-CREATE PROCEDURE Facturacion.PrecioEntrada_Insertar
+CREATE OR ALTER PROCEDURE Facturacion.PrecioEntrada_Insertar
 (
     @IdParque INT,
     @IdTipoVisitante INT,
@@ -2151,10 +1886,8 @@ GO
 -- ----------------------------------------------------------------------------
 -- PrecioEntrada_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.PrecioEntrada_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.PrecioEntrada_Actualizar;
-GO
-CREATE PROCEDURE Facturacion.PrecioEntrada_Actualizar
+
+CREATE OR ALTER PROCEDURE Facturacion.PrecioEntrada_Actualizar
 (
     @IdPrecio INT,
     @Precio DECIMAL(10,2),
@@ -2193,10 +1926,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- PrecioEntrada_Eliminar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.PrecioEntrada_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.PrecioEntrada_Eliminar;
-GO
-CREATE PROCEDURE Facturacion.PrecioEntrada_Eliminar
+CREATE OR ALTER PROCEDURE Facturacion.PrecioEntrada_Eliminar
 (
     @IdPrecio INT
 )
@@ -2218,10 +1948,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- PrecioEntrada_Listar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.PrecioEntrada_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.PrecioEntrada_Listar;
-GO
-CREATE PROCEDURE Facturacion.PrecioEntrada_Listar
+CREATE OR ALTER PROCEDURE Facturacion.PrecioEntrada_Listar
 (
     @IdPrecio INT = NULL,
     @IdParque INT = NULL,
@@ -2251,10 +1978,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- PagoCanon_Insertar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.PagoCanon_Insertar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.PagoCanon_Insertar;
-GO
-CREATE PROCEDURE Facturacion.PagoCanon_Insertar
+CREATE OR ALTER PROCEDURE Facturacion.PagoCanon_Insertar
 (
     @IdConcesion INT,
     @PeriodoMesPago TINYINT,
@@ -2314,10 +2038,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- PagoCanon_Actualizar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.PagoCanon_Actualizar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.PagoCanon_Actualizar;
-GO
-CREATE PROCEDURE Facturacion.PagoCanon_Actualizar
+CREATE OR ALTER PROCEDURE Facturacion.PagoCanon_Actualizar
 (
     @IdPago INT,
     @Monto DECIMAL(10,2),
@@ -2356,10 +2077,8 @@ GO
 -- ----------------------------------------------------------------------------
 -- PagoCanon_Eliminar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.PagoCanon_Eliminar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.PagoCanon_Eliminar;
-GO
-CREATE PROCEDURE Facturacion.PagoCanon_Eliminar
+
+CREATE OR ALTER PROCEDURE Facturacion.PagoCanon_Eliminar
 (
     @IdPago INT
 )
@@ -2381,10 +2100,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- PagoCanon_Listar
 -- ----------------------------------------------------------------------------
-IF OBJECT_ID('Facturacion.PagoCanon_Listar', 'P') IS NOT NULL
-    DROP PROCEDURE Facturacion.PagoCanon_Listar;
-GO
-CREATE PROCEDURE Facturacion.PagoCanon_Listar
+CREATE OR ALTER PROCEDURE Facturacion.PagoCanon_Listar
 (
     @IdPago INT = NULL,
     @IdConcesion INT = NULL,
