@@ -1,5 +1,7 @@
 import tkinter as tk
 import pyodbc
+import tkintermapview
+import requests
 from tkinter import ttk
 from tkinter import messagebox
 
@@ -392,11 +394,93 @@ def cargar_parque_por_id(id_parque):
 
         txt_id.insert(0, str(parque[0]))
         txt_nombre.insert(0, parque[1])
+        mostrar_mapa(parque[2])
         txt_ubicacion.insert(0, parque[2])
         txt_superficie.insert(0, str(parque[3]))
 
         if parque[4]:
             cmb_tipo.set(parque[4])
+
+def mostrar_mapa(nombre):
+
+    try:
+
+        url = "https://nominatim.openstreetmap.org/search"
+
+        parametros = {
+            "q": nombre + ", Argentina",
+            "format": "json",
+            "limit": 1
+        }
+
+        headers = {
+            "User-Agent": "ParquesNacionales"
+        }
+
+        respuesta = requests.get(
+            url,
+            params=parametros,
+            headers=headers
+        )
+
+        datos = respuesta.json()
+
+        if datos:
+
+            lat = float(datos[0]["lat"])
+            lon = float(datos[0]["lon"])
+            mostrar_clima(lat, lon)
+
+            mapa.delete_all_marker()
+
+            mapa.set_position(lat, lon)
+            mapa.set_zoom(12)
+
+            mapa.set_marker(
+                lat,
+                lon,
+                text=nombre
+            )
+
+    except Exception as e:
+        print(e)
+
+def mostrar_clima(lat, lon):
+
+    url = (
+        f"https://api.open-meteo.com/v1/forecast?"
+        f"latitude={lat}&longitude={lon}"
+        "&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code"
+    )
+
+    datos = requests.get(url).json()
+
+    actual = datos["current"]
+
+    temperatura = actual["temperature_2m"]
+    humedad = actual["relative_humidity_2m"]
+    viento = actual["wind_speed_10m"]
+    codigo = actual["weather_code"]
+
+    estados = {
+        0: ("☀️","Despejado"),
+        1: ("🌤️","Mayormente despejado"),
+        2: ("⛅","Parcialmente nublado"),
+        3: ("☁️","Nublado"),
+        45: ("🌫️","Niebla"),
+        51: ("🌦️","Llovizna"),
+        61: ("🌧️","Lluvia"),
+        71: ("❄️","Nieve"),
+        95: ("⛈️","Tormenta")
+    }
+
+    icono, estado = estados.get(codigo,("🌤️","Normal"))
+
+    lbl_icono.config(text=icono)
+    lbl_temp.config(text=f"{temperatura} °C")
+    lbl_estado.config(text=estado)
+    lbl_humedad.config(text=f"💧 {humedad}%")
+    lbl_viento.config(text=f"🌬️ {viento} km/h")
 
 def seleccionar_resultado(event):
 
@@ -419,7 +503,7 @@ def seleccionar_resultado(event):
 ventana = tk.Tk()
 
 ventana.title("Sistema de Parques Nacionales")
-ventana.geometry("800x600")
+ventana.geometry("800x950")
 ventana.resizable(False, False)
 
 style = ttk.Style()
@@ -514,7 +598,86 @@ frame_datos = tk.LabelFrame(
 )
 frame_datos.pack(pady=20)
 
+
+# ------------------------
+# MAPA
+# ------------------------
+
+frame_mapa = tk.LabelFrame(
+    ventana,
+    text="Información en Tiempo Real",
+    padx=10,
+    pady=10
+)
+
+frame_mapa.pack(pady=10)
+
+frame_clima = tk.Frame(frame_mapa)
+frame_clima.pack(side=tk.LEFT, padx=10)
+
+lbl_icono = tk.Label(
+    frame_clima,
+    text="🌤️",
+    font=("Arial",40)
+)
+
+lbl_icono.pack(pady=(15,5))
+
+lbl_temp = tk.Label(
+    frame_clima,
+    text="-- °C",
+    font=("Arial",18,"bold")
+)
+
+lbl_temp.pack()
+
+lbl_estado = tk.Label(
+    frame_clima,
+    text="Esperando...",
+    font=("Arial",10)
+)
+
+lbl_estado.pack(pady=5)
+
+lbl_humedad = tk.Label(
+    frame_clima,
+    text="💧 -- %",
+    font=("Arial",11)
+)
+
+lbl_humedad.pack(pady=5)
+
+lbl_viento = tk.Label(
+    frame_clima,
+    text="🌬️ -- km/h",
+    font=("Arial",11)
+)
+
+lbl_viento.pack(pady=5)
+
+frame_mapa_widget = tk.Frame(frame_mapa)
+frame_mapa_widget.pack(side=tk.LEFT)
+
+mapa = tkintermapview.TkinterMapView(
+    frame_mapa_widget,
+    width=550,
+    height=300
+)
+
+mapa.pack()
+
+mapa.set_position(-38.4161, -63.6167)
+mapa.set_zoom(4)
+
+mapa.pack()
+
+# Argentina por defecto
+mapa.set_position(-38.4161, -63.6167)
+mapa.set_zoom(4)
+
+# ------------------------
 # ID
+# ------------------------
 
 tk.Label(
     frame_datos,
