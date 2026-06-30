@@ -143,7 +143,7 @@ CREATE OR ALTER PROCEDURE Administracion.Parque_Insertar
     @Ubicacion VARCHAR(200),
     @Superficie DECIMAL(12,2),
     @Descripcion VARCHAR(100) = NULL,
-    @IdTipoParque INT = NULL,
+    @IdTipoParque INT OUTPUT = NULL,
     @EsActivo BIT = 1
 )
 AS
@@ -257,6 +257,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Parque_Listar
 -- ----------------------------------------------------------------------------
+
 CREATE OR ALTER PROCEDURE Administracion.Parque_Listar
 (
     @IdParque INT = NULL,
@@ -277,6 +278,41 @@ BEGIN
     ORDER BY p.Nombre;
 END
 GO
+
+-- ----------------------------------------------------------------------------
+-- Parque_Listar_App
+-- ----------------------------------------------------------------------------
+
+CREATE OR ALTER PROCEDURE Administracion.Parque_ListarApp
+(
+    @Nombre VARCHAR(100) = NULL,
+    @IdParque INT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        p.IdParque,
+        p.Nombre,
+        p.Ubicacion,
+        p.Superficie,
+        p.Descripcion,
+        p.IdTipoParque,
+        tp.Descripcion AS TipoParque,
+        p.EsActivo
+    FROM Administracion.Parque p
+    LEFT JOIN Administracion.TipoParque tp
+        ON tp.IdTipoParque = p.IdTipoParque
+    WHERE p.EsActivo = 1
+      AND (@IdParque IS NULL OR p.IdParque = @IdParque)
+      AND (@Nombre IS NULL OR p.Nombre COLLATE Latin1_General_CI_AI
+                              LIKE '%' + @Nombre + '%' COLLATE Latin1_General_CI_AI)
+    ORDER BY p.Nombre;
+END
+GO
+
+
 
 -- ============================================================================
 -- TABLA: Administracion.AsignacionParque

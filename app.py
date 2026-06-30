@@ -58,7 +58,7 @@ def buscar_parque():
         txt_superficie.insert(0, str(parque[3]))
 
         if parque[4]:
-            cmb_tipo.set(parque[4])
+            cmb_tipo.set(parque[6])
 
     else:
 
@@ -103,35 +103,25 @@ def guardar_parque():
             id_tipo = None
 
         cursor.execute("""
-            DECLARE @IdParqueNuevo INT;
-
             EXEC Administracion.Parque_Insertar
-                @Nombre = ?,
-                @Ubicacion = ?,
-                @Superficie = ?,
-                @Descripcion = NULL,
-                @IdTipoParque = ?,
-                @EsActivo = 1,
-                @IdParque = @IdParqueNuevo OUTPUT;
-
-            SELECT @IdParqueNuevo;
+                @Nombre=?,
+                @Ubicacion=?,
+                @Superficie=?,
+                @Descripcion=NULL,
+                @IdTipoParque=?,
+                @EsActivo=1
         """,
         nombre,
         ubicacion,
         superficie,
         id_tipo)
 
-        nuevo_id = cursor.fetchone()[0]
-
         conexion.commit()
         conexion.close()
 
-        txt_id.delete(0, tk.END)
-        txt_id.insert(0, str(nuevo_id))
-
         messagebox.showinfo(
             "Éxito",
-            f"Parque guardado correctamente. ID: {nuevo_id}"
+            "Parque guardado correctamente."
         )
 
     except Exception as e:
@@ -339,13 +329,9 @@ def buscar_por_nombre():
     cursor = conexion.cursor()
 
     cursor.execute("""
-        SELECT
-            IdParque,
-            Nombre
-        FROM Administracion.Parque
-        WHERE Nombre LIKE ? AND EsActivo = 1
-        ORDER BY Nombre
-    """, f"%{nombre}%")
+        EXEC Administracion.Parque_ListarApp
+            @Nombre=?
+    """, nombre)
 
     resultados = cursor.fetchall()
 
@@ -367,16 +353,8 @@ def cargar_parque_por_id(id_parque):
     cursor = conexion.cursor()
 
     cursor.execute("""
-        SELECT
-            P.IdParque,
-            P.Nombre,
-            P.Ubicacion,
-            P.Superficie,
-            TP.Descripcion
-        FROM Administracion.Parque P
-        LEFT JOIN Administracion.TipoParque TP
-            ON P.IdTipoParque = TP.IdTipoParque
-        WHERE P.IdParque = ?
+        EXEC Administracion.Parque_ListarApp
+            @IdParque=?
     """, id_parque)
 
     parque = cursor.fetchone()
@@ -399,7 +377,7 @@ def cargar_parque_por_id(id_parque):
         txt_superficie.insert(0, str(parque[3]))
 
         if parque[4]:
-            cmb_tipo.set(parque[4])
+            cmb_tipo.set(parque[6])
 
 def mostrar_mapa(nombre):
 
