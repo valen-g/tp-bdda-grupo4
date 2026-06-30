@@ -1,3 +1,20 @@
+
+/*
+# Universidad: Universidad Nacional de La Matanza
+# Materia: 3641 - Bases de Datos Aplicada
+# Grupo: Grupo 4
+# Integrantes:
+- Belloni, Nicolas
+- Bernardo, Ivan
+- Gonzalez, Agustin
+- Gallo, Valentina
+
+# Fecha: 26/06/2026
+
+# Objetivo:
+    Conexion con APIS para mostrar temperatura del parque (OpenMeteo).
+*/
+
 USE ParquesNacionalesDB;
 GO
 
@@ -154,3 +171,148 @@ BEGIN
     DROP TABLE #ReporteClima;
 END;
 GO
+
+--API wikipedia
+
+USE ParquesNacionalesDB;
+GO
+
+CREATE OR ALTER PROCEDURE Administracion.ObtenerDescripcionWikipedia
+(
+    @NombreParque VARCHAR(100),
+    @Descripcion NVARCHAR(MAX) OUTPUT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @URL NVARCHAR(1000);
+    DECLARE @Response NVARCHAR(MAX);
+
+    CREATE TABLE #Response
+    (
+        JsonData NVARCHAR(MAX)
+    );
+
+    DECLARE @Objeto INT;
+    DECLARE @Respuesta INT;
+
+    -- Adaptar el nombre para la URL
+    DECLARE @Busqueda NVARCHAR(200);
+
+    SET @Busqueda = TRIM(@NombreParque);
+
+    -- Quitamos " - "
+    SET @Busqueda = REPLACE(@Busqueda, ' - ', ' ');
+
+    -- Reemplazamos espacios por _
+    SET @Busqueda = REPLACE(@Busqueda, ' ', '_');
+
+    SET @URL =
+        'https://es.wikipedia.org/api/rest_v1/page/summary/' +
+        @Busqueda;
+
+    EXEC @Respuesta = sp_OACreate 'MSXML2.ServerXMLHTTP', @Objeto OUT;
+
+    IF @Respuesta <> 0
+    BEGIN
+        RAISERROR('No se pudo crear el objeto HTTP.',16,1);
+        RETURN;
+    END
+
+    EXEC sp_OAMethod @Objeto,
+        'open',
+        NULL,
+        'GET',
+        @URL,
+        'false';
+
+    EXEC sp_OAMethod @Objeto,'send';
+
+    INSERT INTO #Response
+    EXEC sp_OAGetProperty @Objeto,'responseText';
+
+    SELECT @Response = JsonData
+    FROM #Response;
+
+    EXEC sp_OADestroy @Objeto;
+
+    IF ISJSON(@Response)=0
+    BEGIN
+        RAISERROR('La respuesta de Wikipedia no es válida.',16,1);
+        RETURN;
+    END
+
+    SET @Descripcion =
+        JSON_VALUE(@Response,'$.extract');
+
+    DROP TABLE #Response;
+
+END
+GO
+
+CREATE OR ALTER PROCEDURE Administracion.VerDescripcionParqueAPI
+(
+    @IdParque INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @Ubicacion VARCHAR(100);
+    DECLARE @Descripcion NVARCHAR(MAX);
+
+    SELECT @Ubicacion = Ubicacion
+    FROM Administracion.Parque
+    WHERE IdParque = @IdParque;
+
+    IF @Ubicacion IS NULL
+    BEGIN
+        RAISERROR('El parque no existe.',16,1);
+        RETURN;
+    END
+
+    EXEC Administracion.ObtenerDescripcionWikipedia
+        @NombreParque = @Ubicacion,
+        @Descripcion = @Descripcion OUTPUT;
+
+    SELECT
+        @Ubicacion AS Ubicacion,
+        @Descripcion AS Descripcion;
+END
+GO
+
+CREATE OR ALTER PROCEDURE Administracion.VerDescripcionParqueAPI
+(
+    @IdParque INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @Ubicacion VARCHAR(100);
+    DECLARE @Descripcion NVARCHAR(1024);
+
+    SELECT @Ubicacion = Ubicacion
+    FROM Administracion.Parque
+    WHERE IdParque = @IdParque;
+
+    IF @Ubicacion IS NULL
+    BEGIN
+        RAISERROR('El parque no existe.',16,1);
+        RETURN;
+    END
+
+    EXEC Administracion.ObtenerDescripcionWikipedia
+        @NombreParque = @Ubicacion,
+        @Descripcion = @Descripcion OUTPUT;
+
+    SELECT
+        @Ubicacion AS Ubicacion,
+        @Descripcion AS Descripcion;
+END
+GO
+
+EXEC Administracion.VerDescripcionParqueAPI
+    @IdParque = 2;
+
