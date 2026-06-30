@@ -58,7 +58,7 @@ def buscar_parque():
         txt_superficie.insert(0, str(parque[3]))
 
         if parque[4]:
-            cmb_tipo.set(parque[6])
+            cmb_tipo.set(parque[4])
 
     else:
 
