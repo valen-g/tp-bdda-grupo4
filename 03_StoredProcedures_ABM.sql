@@ -111,6 +111,24 @@ BEGIN
 END
 GO
 
+-- ----------------------------------------------------------------------------
+-- TipoParque_Listar
+-- ----------------------------------------------------------------------------
+CREATE OR ALTER PROCEDURE Administracion.TipoParque_Listar
+(
+    @IdTipoParque INT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT IdTipoParque, Descripcion
+    FROM Administracion.TipoParque
+    WHERE (@IdTipoParque IS NULL OR IdTipoParque = @IdTipoParque)
+    ORDER BY Descripcion;
+END
+GO
+
 -- ============================================================================
 -- TABLA: Administracion.Parque
 -- ============================================================================
@@ -215,10 +233,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Parque_Eliminar
 -- ----------------------------------------------------------------------------
--- Nota: se realiza baja lógica (EsActivo = 0) en lugar de baja física, dado
--- que Parque es referenciado por múltiples tablas (Actividad, TicketFactura,
--- Concesion, PrecioEntrada, AsignacionParque) y su eliminación física
--- comprometería la integridad del historial del sistema.
+-- BAJA LOGICA
 CREATE OR ALTER PROCEDURE Administracion.Parque_Eliminar
 (
     @IdParque INT
@@ -236,6 +251,30 @@ BEGIN
     UPDATE Administracion.Parque
     SET EsActivo = 0
     WHERE IdParque = @IdParque;
+END
+GO
+
+-- ----------------------------------------------------------------------------
+-- Parque_Listar
+-- ----------------------------------------------------------------------------
+CREATE OR ALTER PROCEDURE Administracion.Parque_Listar
+(
+    @IdParque INT = NULL,
+    @IdTipoParque INT = NULL,
+    @SoloActivos BIT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT p.IdParque, p.Nombre, p.Ubicacion, p.Superficie, p.Descripcion,
+           p.IdTipoParque, tp.Descripcion AS TipoParque, p.EsActivo
+    FROM Administracion.Parque p
+    LEFT JOIN Administracion.TipoParque tp ON tp.IdTipoParque = p.IdTipoParque
+    WHERE (@IdParque IS NULL OR p.IdParque = @IdParque)
+      AND (@IdTipoParque IS NULL OR p.IdTipoParque = @IdTipoParque)
+      AND (@SoloActivos IS NULL OR p.EsActivo = @SoloActivos)
+    ORDER BY p.Nombre;
 END
 GO
 
@@ -674,9 +713,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Personal_Eliminar
 -- ----------------------------------------------------------------------------
--- Nota: se realiza baja lógica (EsActivo = 0), ya que Personal puede estar
--- referenciado en ActividadGuia (historial de tours dictados) y eliminarlo
--- físicamente rompería la trazabilidad histórica exigida por el TP.
+-- BAJA LOGICA
 CREATE OR ALTER PROCEDURE Administracion.Personal_Eliminar
 (
     @DNI INT
@@ -694,6 +731,34 @@ BEGIN
     UPDATE Administracion.Personal
     SET EsActivo = 0
     WHERE DNI = @DNI;
+END
+GO
+
+-- ----------------------------------------------------------------------------
+-- Personal_Listar
+-- ----------------------------------------------------------------------------
+CREATE OR ALTER PROCEDURE Administracion.Personal_Listar
+(
+    @DNI INT = NULL,
+    @TipoPersonal VARCHAR(20) = NULL,
+    @SoloActivos BIT = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT pe.DNI, pe.NombreApellido, pe.FechaNacimiento, pe.Email, pe.Telefono,
+           pe.TipoPersonal, pe.EsActivo,
+           pe.IdHabilitacion, h.Descripcion AS Habilitacion, h.FechaVencimiento AS HabilitacionVencimiento,
+           pe.IdAsignacion, ap.IdParque, pq.Nombre AS ParqueAsignado
+    FROM Administracion.Personal pe
+    LEFT JOIN Administracion.Habilitacion h ON h.IdHabilitacion = pe.IdHabilitacion
+    LEFT JOIN Administracion.AsignacionParque ap ON ap.IdAsignacion = pe.IdAsignacion
+    LEFT JOIN Administracion.Parque pq ON pq.IdParque = ap.IdParque
+    WHERE (@DNI IS NULL OR pe.DNI = @DNI)
+      AND (@TipoPersonal IS NULL OR pe.TipoPersonal = @TipoPersonal)
+      AND (@SoloActivos IS NULL OR pe.EsActivo = @SoloActivos)
+    ORDER BY pe.NombreApellido;
 END
 GO
 
@@ -816,8 +881,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Actividad_Eliminar
 -- ----------------------------------------------------------------------------
--- Nota: baja lógica, ya que la actividad puede tener historial de ventas
--- (TicketItemActividad) y guías asociados (ActividadGuia).
+-- BAJA LOGICA
 CREATE OR ALTER PROCEDURE Administracion.Actividad_Eliminar
 (
     @IdActividad INT
@@ -866,11 +930,8 @@ GO
 -- ============================================================================
 -- TABLA: Administracion.ActividadGuia
 -- ============================================================================
--- Nota: tabla con clave primaria compuesta (DniPersonal, IdActividad). No
--- existe una columna identidad propia, por lo que Actualizar requiere ambas
--- claves para ubicar el registro.
 
--- ----------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------
 -- ActividadGuia_Insertar
 -- ----------------------------------------------------------------------------
 CREATE OR ALTER PROCEDURE Administracion.ActividadGuia_Insertar
@@ -996,17 +1057,9 @@ BEGIN
 END
 GO
 
-
 -- ============================================================================
 -- TABLA: Administracion.TipoVisitante
 -- ============================================================================
--- TABLA: Administracion.TipoVisitante
--- ============================================================================
--- *** CORREGIDO ***
--- Tras el ajuste del DER, esta tabla ya no depende de Facturacion.TicketItemEntrada.
--- La relación correcta es TipoVisitante (1) ---- (N) TicketItemEntrada, con la
--- FK ubicada en TicketItemEntrada (ver SP de esa tabla más abajo).
-
 -- ----------------------------------------------------------------------------
 -- TipoVisitante_Insertar
 -- ----------------------------------------------------------------------------
@@ -1079,8 +1132,6 @@ GO
 -- ----------------------------------------------------------------------------
 -- TipoVisitante_Eliminar
 -- ----------------------------------------------------------------------------
--- Nota: se valida contra Facturacion.PrecioEntrada y Facturacion.TicketItemEntrada,
--- ya que ambas referencian a este tipo de visitante.
 CREATE OR ALTER PROCEDURE Administracion.TipoVisitante_Eliminar
 (
     @IdTipoVisitante INT
@@ -1241,6 +1292,26 @@ BEGIN
 END
 GO
 
+-- ----------------------------------------------------------------------------
+-- EmpresaConcesionaria_Listar
+-- ----------------------------------------------------------------------------
+CREATE OR ALTER PROCEDURE Administracion.EmpresaConcesionaria_Listar
+(
+    @CUIT INT = NULL,
+    @RazonSocial VARCHAR(50) = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT CUIT, RazonSocial, Email, Telefono
+    FROM Administracion.EmpresaConcesionaria
+    WHERE (@CUIT IS NULL OR CUIT = @CUIT)
+      AND (@RazonSocial IS NULL OR RazonSocial LIKE '%' + @RazonSocial + '%')
+    ORDER BY RazonSocial;
+END
+GO
+
 
 -- ============================================================================
 -- TABLA: Administracion.Concesion
@@ -1358,8 +1429,7 @@ GO
 -- ----------------------------------------------------------------------------
 -- Concesion_Eliminar
 -- ----------------------------------------------------------------------------
--- Nota: baja lógica vía cambio de Estado a 'Cancelada', ya que la concesión
--- puede tener pagos históricos (Facturacion.PagoCanon) asociados.
+-- BAJA LOGICA
 CREATE OR ALTER PROCEDURE Administracion.Concesion_Eliminar
 (
     @IdConcesion INT
@@ -1465,9 +1535,6 @@ GO
 -- ----------------------------------------------------------------------------
 -- TicketFactura_Actualizar
 -- ----------------------------------------------------------------------------
--- Nota: por tratarse de un comprobante fiscal, solo se permite actualizar la
--- forma de pago. El resto de los datos (número, punto de venta, total, fecha)
--- no debería modificarse una vez emitido el comprobante.
 CREATE OR ALTER PROCEDURE Facturacion.TicketFactura_Actualizar
 (
     @IdTicketFactura INT,
@@ -1501,9 +1568,6 @@ GO
 -- TicketFactura_Eliminar
 -- ----------------------------------------------------------------------------
 -- Nota: un comprobante fiscal emitido no debería eliminarse físicamente.
--- Este SP se mantiene por consistencia con el patrón ABM exigido, pero se
--- bloquea su ejecución y se sugiere usar anulación (nota de crédito) en la
--- lógica de negocio en su lugar.
 CREATE OR ALTER PROCEDURE Facturacion.TicketFactura_Eliminar
 (
     @IdTicketFactura INT
