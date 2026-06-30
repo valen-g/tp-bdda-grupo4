@@ -251,36 +251,7 @@ BEGIN
 END
 GO
 
-CREATE OR ALTER PROCEDURE Administracion.VerDescripcionParqueAPI
-(
-    @IdParque INT
-)
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    DECLARE @Ubicacion VARCHAR(100);
-    DECLARE @Descripcion NVARCHAR(MAX);
-
-    SELECT @Ubicacion = Ubicacion
-    FROM Administracion.Parque
-    WHERE IdParque = @IdParque;
-
-    IF @Ubicacion IS NULL
-    BEGIN
-        RAISERROR('El parque no existe.',16,1);
-        RETURN;
-    END
-
-    EXEC Administracion.ObtenerDescripcionWikipedia
-        @NombreParque = @Ubicacion,
-        @Descripcion = @Descripcion OUTPUT;
-
-    SELECT
-        @Ubicacion AS Ubicacion,
-        @Descripcion AS Descripcion;
-END
-GO
+--Procedimiento para ver la descripcion, para que este relacionado al parque
 
 CREATE OR ALTER PROCEDURE Administracion.VerDescripcionParqueAPI
 (
@@ -315,4 +286,3 @@ GO
 
 EXEC Administracion.VerDescripcionParqueAPI
     @IdParque = 2;
-
