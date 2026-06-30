@@ -1,9 +1,27 @@
+/*
+# Universidad: Universidad Nacional de La Matanza
+# Materia: 3641 - Bases de Datos Aplicada
+# Grupo: Grupo 4
+# Integrantes:
+- Belloni, Nicolas
+- Bernardo, Ivan
+- Gonzalez, Agustin
+- Gallo, Valentina
+
+# Fecha: 05/06/2026
+--------------------------------------------------------------------------------
+    Script          : 04_Importaci√≥nDeDatos.sql
+    Objetivo        : Importa los datos provenientes de distintas 
+                      fuentes en formato de CSV.
+================================================================================
+*/
+
 USE ParquesNacionalesDB;
-GO
+GO 
 
 --SP para importar los datos desde parques.csv
 
-CREATE OR ALTER PROCEDURE ImportarArchivoParqueCSV
+CREATE OR ALTER PROCEDURE Administracion.ImportarArchivoParqueCSV
 (
     @path VARCHAR(255)
 )
@@ -58,7 +76,9 @@ BEGIN
     @Superficie DECIMAL(12,2),
     @Descripcion VARCHAR(100),
     @IdTipoParque INT,
-    @SQL NVARCHAR(512)
+    @SQL NVARCHAR(512),
+    @EsActivo VARCHAR(100),
+    @EsActivoBit BIT;
 
     SET @SQL = N'
     BULK INSERT #TempBaseCSV
@@ -66,7 +86,7 @@ BEGIN
     WITH
     (
         FIRSTROW = 2,
-        FIELDTERMINATOR = '','',
+        FIELDTERMINATOR = '';'',
         ROWTERMINATOR = ''0x0a'',
         CODEPAGE = ''65001''
     );';
@@ -77,14 +97,14 @@ BEGIN
     SET
     Nombre = REPLACE(REPLACE(REPLACE(TRIM(Nombre), CHAR(13), ''), CHAR(10), ''), '"', ''),
     Tipo   = REPLACE(REPLACE(REPLACE(TRIM(Tipo),   CHAR(13), ''), CHAR(10), ''), '"', '');
-    --CHAR(13) es el \r -> Retorno de carro
-    --CHAR(10) es el \n -> Nueva linea
 
+    -- ==============================================================
+    -- 1. CURSOR PARA TIPOS DE PARQUE
+    -- ==============================================================
     DECLARE @DescripcionTipo VARCHAR(100);
     DECLARE @IdTipoParqueNuevo INT;
 
     DECLARE CurTipos CURSOR FOR
-
     SELECT DISTINCT TRIM(T.Tipo)
     FROM #TempBaseCSV T
     WHERE T.Tipo IS NOT NULL
@@ -97,9 +117,7 @@ BEGIN
       );
 
     OPEN CurTipos;
-
-    FETCH NEXT FROM CurTipos
-    INTO @DescripcionTipo;
+    FETCH NEXT FROM CurTipos INTO @DescripcionTipo;
 
     WHILE @@FETCH_STATUS = 0
     BEGIN
@@ -107,25 +125,26 @@ BEGIN
             BEGIN TRAN
                 EXEC Administracion.TipoParque_Insertar
                     @Descripcion = @DescripcionTipo,
-                    @IdTipoParque = @IdTipoParqueNuevo;
+                    @IdTipoParque = @IdTipoParqueNuevo OUTPUT;
             COMMIT TRAN 
         END TRY
         BEGIN CATCH
-        IF @@TRANCOUNT > 0 ROLLBACK TRAN;
-        INSERT INTO Administracion.LogRegistros(NumeroRegistroError,Descripcion)
-        VALUES (
-            ERROR_NUMBER(), 'Tipo: ' + @DescripcionTipo + ' - '+  ERROR_MESSAGE()
+            IF @@TRANCOUNT > 0 ROLLBACK TRAN;
+            INSERT INTO Administracion.LogRegistros(NumeroRegistroError,Descripcion)
+            VALUES (
+                ERROR_NUMBER(), 
+                LEFT('Tipo: ' + @DescripcionTipo + ' - '+  ERROR_MESSAGE(), 255)
             );
         END CATCH 
 
-        FETCH NEXT FROM CurTipos
-        INTO @DescripcionTipo;
-
+        FETCH NEXT FROM CurTipos INTO @DescripcionTipo;
     END
-
     CLOSE CurTipos;
     DEALLOCATE CurTipos;
 
+    -- ==============================================================
+    -- 2. CURSOR PARA ACTUALIZAR PARQUES EXISTENTES
+    -- ==============================================================
     DECLARE @IdParqueActualizar INT;
 
     DECLARE CurActualizar CURSOR FOR
@@ -135,7 +154,8 @@ BEGIN
         P.Ubicacion,
         ISNULL(TRY_CAST(T.AreaReportada AS INT), 0),
         LEFT(ISNULL(T.PlanGestion, ''), 100),
-        TP.IdTipoParque
+        TP.IdTipoParque,
+        T.Estado
     FROM Administracion.Parque P
     INNER JOIN #TempBaseCSV T
         ON TRIM(P.Ubicacion) = TRIM(T.Nombre)
@@ -151,12 +171,18 @@ BEGIN
         @Ubicacion,
         @Superficie,
         @Descripcion,
-        @IdTipoParque;
+        @IdTipoParque,
+        @EsActivo;
 
     WHILE @@FETCH_STATUS = 0
     BEGIN
         BEGIN TRY
             BEGIN TRAN
+                
+                IF @EsActivo IS NULL OR TRIM(@EsActivo) = '' 
+                    SET @EsActivoBit = 0;
+                ELSE 
+                    SET @EsActivoBit = 1;
 
                 EXEC Administracion.Parque_Actualizar
                     @IdParque = @IdParqueActualizar,
@@ -165,19 +191,18 @@ BEGIN
                     @Superficie = @Superficie,
                     @Descripcion = @Descripcion,
                     @IdTipoParque = @IdTipoParque,
-                    @EsActivo = 1;
-                
-                COMMIT TRAN
-            END TRY
+                    @EsActivo = @EsActivoBit; 
 
-            BEGIN CATCH
-                IF @@TRANCOUNT > 0 ROLLBACK TRAN;
-                INSERT INTO Administracion.LogRegistros(NumeroRegistroError,Descripcion)
-                VALUES (
-                        ERROR_NUMBER(),
-                        'ParqueID: ' + @IdParqueActualizar + ' - ' + ERROR_MESSAGE()
-                    );
-            END CATCH
+            COMMIT TRAN
+        END TRY
+        BEGIN CATCH
+            IF @@TRANCOUNT > 0 ROLLBACK TRAN;
+            INSERT INTO Administracion.LogRegistros(NumeroRegistroError,Descripcion)
+            VALUES (
+                ERROR_NUMBER(),
+                LEFT('ParqueID: ' + ISNULL(CAST(@IdParqueActualizar AS VARCHAR), 'N/A') + ' - ' + ERROR_MESSAGE(), 255)
+            );
+        END CATCH
 
         FETCH NEXT FROM CurActualizar
         INTO
@@ -186,23 +211,24 @@ BEGIN
             @Ubicacion,
             @Superficie,
             @Descripcion,
-            @IdTipoParque;
-
+            @IdTipoParque,
+            @EsActivo;
     END
 
     CLOSE CurActualizar;
     DEALLOCATE CurActualizar;
 
-    DECLARE @IdParque INT;
-
+    -- ==============================================================
+    -- 3. CURSOR PARA INSERTAR NUEVOS PARQUES
+    -- ==============================================================
     DECLARE CurParques CURSOR FOR
-
     SELECT
         LEFT(TRIM(T.Tipo) + ' - ' + TRIM(T.Nombre), 100),
         T.Nombre,
         ISNULL(TRY_CAST(T.AreaReportada AS DECIMAL(12,2)), 0),
         LEFT(ISNULL(T.PlanGestion, ''), 100),
-        TP.IdTipoParque
+        TP.IdTipoParque,
+        T.Estado
     FROM #TempBaseCSV T
     INNER JOIN Administracion.TipoParque TP
         ON TRIM(TP.Descripcion) = TRIM(T.Tipo)
@@ -213,7 +239,6 @@ BEGIN
         WHERE TRIM(P.Ubicacion) = TRIM(T.Nombre)
     );
 
-
     OPEN CurParques;
 
     FETCH NEXT FROM CurParques
@@ -222,12 +247,18 @@ BEGIN
         @Ubicacion,
         @Superficie,
         @Descripcion,
-        @IdTipoParque;
+        @IdTipoParque,
+        @EsActivo;
 
     WHILE @@FETCH_STATUS = 0
     BEGIN
         BEGIN TRY
             BEGIN TRAN
+                
+                IF @EsActivo IS NULL OR TRIM(@EsActivo) = '' 
+                    SET @EsActivoBit = 0;
+                ELSE 
+                    SET @EsActivoBit = 1;
 
                 EXEC Administracion.Parque_Insertar
                     @Nombre = @Nombre,
@@ -235,27 +266,27 @@ BEGIN
                     @Superficie = @Superficie,
                     @Descripcion = @Descripcion,
                     @IdTipoParque = @IdTipoParque,
-                    @EsActivo = 1
-
-                FETCH NEXT FROM CurParques
-                INTO
-                    @Nombre,
-                    @Ubicacion,
-                    @Superficie,
-                    @Descripcion,
-                    @IdTipoParque
+                    @EsActivo = @EsActivoBit;
                 
             COMMIT TRAN
         END TRY
-
         BEGIN CATCH
-        IF @@TRANCOUNT > 0 ROLLBACK TRAN;
-        INSERT INTO Administracion.LogRegistros(NumeroRegistroError,Descripcion)
-        VALUES(
+            IF @@TRANCOUNT > 0 ROLLBACK TRAN;
+            INSERT INTO Administracion.LogRegistros(NumeroRegistroError,Descripcion)
+            VALUES(
                 ERROR_NUMBER(),
-                'Nombre' + @Nombre + ' - ' + ERROR_MESSAGE()
+                LEFT('Nombre: ' + ISNULL(@Nombre, 'N/A') + ' - ' + ERROR_MESSAGE(), 255)
             );
         END CATCH
+
+        FETCH NEXT FROM CurParques
+        INTO
+            @Nombre,
+            @Ubicacion,
+            @Superficie,
+            @Descripcion,
+            @IdTipoParque,
+            @EsActivo;
     END
 
     CLOSE CurParques;
@@ -264,9 +295,8 @@ BEGIN
 END
 GO
 
-EXEC ImportarArchivoParqueCSV
-'C:\Users\iviez\Documents\BDDA\TP\ParquesNacionales\0. Entradas\0. Parques.csv'
-
+EXEC Administracion.ImportarArchivoParqueCSV
+'C:\Users\iviez\Documents\BDDA\TP Gesti√≥n de Parques Nacionales\ParquesNacionales\0. Entradas\0. Parques.csv'
 GO
 
 CREATE OR ALTER PROCEDURE Administracion.CargarTiposVisitante
@@ -305,10 +335,9 @@ END
 GO
 
 EXEC Administracion.CargarTiposVisitante;
---SP para importar datos del archivo csv de tarifas
 GO
 
-CREATE OR ALTER PROCEDURE ImportarArchivoTarifaCSV
+CREATE OR ALTER PROCEDURE Administracion.ImportarArchivoTarifaCSV
 (
     @Path VARCHAR(255)
 )
@@ -347,7 +376,6 @@ BEGIN
     DECLARE @IdPrecio INT;
     DECLARE @Hoy DATE = CAST(GETDATE() AS DATE);
 
-    -- 1. Declaramos el Cursor (AQUÕ INCLUIMOS LA LIMPIEZA DEL PRECIO)
     DECLARE CurTarifas CURSOR FOR
     SELECT
         P.IdParque,
@@ -385,13 +413,11 @@ BEGIN
     INNER JOIN Administracion.TipoVisitante TV
         ON TV.Descripcion = U.TipoVisitante;
 
-    -- 2. Abrimos el cursor y traemos el primer registro
     OPEN CurTarifas;
 
     FETCH NEXT FROM CurTarifas
     INTO @IdParque, @IdTipoVisitante, @Precio;
 
-    -- 3. Iniciamos el ciclo
     WHILE @@FETCH_STATUS = 0
     BEGIN
         BEGIN TRY
@@ -400,7 +426,6 @@ BEGIN
                 DECLARE @PrecioVigente DECIMAL(10,2) = NULL;
                 DECLARE @VigenteDesdeActual DATE = NULL;
 
-                -- Buscar si ya existe un precio vigente para este parque y tipo de visitante
                 SELECT TOP 1 
                     @IdPrecioVigente = IdPrecio, 
                     @PrecioVigente = Precio,
@@ -411,7 +436,6 @@ BEGIN
                   AND VigenteHasta IS NULL
                 ORDER BY IdPrecio DESC;
 
-                -- Si no existe un precio previo, lo insertamos
                 IF @IdPrecioVigente IS NULL
                 BEGIN
                     EXEC Facturacion.PrecioEntrada_Insertar
@@ -422,17 +446,14 @@ BEGIN
                         @VigenteHasta = NULL,
                         @IdPrecio = @IdPrecio OUTPUT;
                 END
-                -- Si existe pero el precio cambiÛ, cerramos el viejo e insertamos el nuevo
                 ELSE IF @PrecioVigente <> @Precio
                 BEGIN
-                    -- Cerramos la vigencia del precio anterior (hasta ayer)
                     EXEC Facturacion.PrecioEntrada_Actualizar 
                         @IdPrecio = @IdPrecioVigente, 
                         @Precio = @PrecioVigente, 
                         @VigenteDesde = @VigenteDesdeActual, 
                         @VigenteHasta = @Hoy;
 
-                    -- Insertamos el nuevo precio vigente
                     EXEC Facturacion.PrecioEntrada_Insertar
                         @IdParque = @IdParque,
                         @IdTipoVisitante = @IdTipoVisitante,
@@ -440,8 +461,8 @@ BEGIN
                         @VigenteDesde = @Hoy,
                         @VigenteHasta = NULL,
                         @IdPrecio = @IdPrecio OUTPUT;
+
                 END
-                -- Si el precio es el mismo, no hacemos nada (evitamos duplicados)
                 COMMIT TRAN
             END TRY
             BEGIN CATCH
@@ -453,25 +474,67 @@ BEGIN
                 );
             END CATCH
 
-                -- Buscamos el siguiente registro
                 FETCH NEXT FROM CurTarifas
                 INTO @IdParque, @IdTipoVisitante, @Precio
     END
 
-    -- 4. Cerramos y liberamos el cursor
     CLOSE CurTarifas;
     DEALLOCATE CurTarifas;
+
+
+    DECLARE CurFaltantes CURSOR FOR
+    SELECT P.IdParque, TV.IdTipoVisitante
+    FROM Administracion.Parque P
+    CROSS JOIN Administracion.TipoVisitante TV
+    WHERE NOT EXISTS (
+        SELECT 1 FROM Facturacion.PrecioEntrada PE 
+        WHERE PE.IdParque = P.IdParque
+        AND PE.IdTipoVisitante = TV.IdTipoVisitante);
+
+    OPEN CurFaltantes;
+    FETCH NEXT FROM CurFaltantes INTO @IdParque, @IdTipoVisitante;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        BEGIN TRY
+            BEGIN TRAN;
+            
+            DECLARE @PrecioPorDefecto DECIMAL(10,2) = 30000.00;
+            DECLARE @IdPrecioGeneradoDefecto INT;
+
+            EXEC Facturacion.PrecioEntrada_Insertar
+                @IdParque = @IdParque,
+                @IdTipoVisitante = @IdTipoVisitante,
+                @Precio = @PrecioPorDefecto,
+                @VigenteDesde = @Hoy,
+                @VigenteHasta = NULL,
+                @IdPrecio = @IdPrecioGeneradoDefecto OUTPUT;
+
+            COMMIT TRAN;
+        END TRY
+        BEGIN CATCH
+            IF @@TRANCOUNT > 0 ROLLBACK TRAN;
+            INSERT INTO Administracion.LogRegistros (NumeroRegistroError, Descripcion)
+            VALUES (
+                ERROR_NUMBER(),
+                LEFT('Error Precio Defecto ParqueID ' + ISNULL(CAST(@IdParque AS VARCHAR), 'N/A') + ': ' + ERROR_MESSAGE(), 255)
+            );
+        END CATCH
+        
+        FETCH NEXT FROM CurFaltantes INTO @IdParque, @IdTipoVisitante;
+    END
+    
+    CLOSE CurFaltantes;
+    DEALLOCATE CurFaltantes;
 
 END
 GO
 
-EXEC ImportarArchivoTarifaCSV
-    'C:\Users\iviez\Documents\BDDA\TP\ParquesNacionales\0. Entradas\1. Tarifas.csv';
+EXEC Administracion.ImportarArchivoTarifaCSV
+    'C:\Users\iviez\Documents\BDDA\TP Gesti√≥n de Parques Nacionales\ParquesNacionales\0. Entradas\1. Tarifas.csv';
 GO
 
---SP para importar datos del archivo csv de personal
-
-CREATE OR ALTER PROCEDURE ImportarArchivoPersonal
+CREATE OR ALTER PROCEDURE Administracion.ImportarArchivoPersonal
 (
     @path VARCHAR(255)
 )
@@ -497,7 +560,7 @@ BEGIN
         NombreParque VARCHAR(100)
     );
 
-    DECLARE @SQL NVARCHAR(255);
+    DECLARE @SQL NVARCHAR(512);
 
     SET @SQL = N'
     BULK INSERT #TempPersonalCSV
@@ -507,9 +570,9 @@ BEGIN
         FIELDTERMINATOR = '';'',
         ROWTERMINATOR = ''0x0a'',
         CODEPAGE = ''1252''
-    );';
+    );'
 
-    --1252 porque soporta la Ò
+    --1252 porque soporta la √±
 
     EXEC sp_executesql @SQL;
 
@@ -555,7 +618,7 @@ BEGIN
         ),
         CAST(csv.Descripcion AS VARCHAR(100)),
         TRY_CONVERT(DATE, csv.FechaOtorgamiento, 103),
-        TRY_CONVERT(DATE, csv.FechaVencimiento, 103), --103 corresponde a formato dd/mm/yyyy
+        TRY_CONVERT(DATE, csv.FechaVencimiento, 103),
         p.IdParque
 
     FROM #TempPersonalCSV csv
@@ -588,7 +651,6 @@ BEGIN
                 DECLARE @IdAsignacion INT = NULL;
                 DECLARE @FechaEgreso DATE = NULL; 
 
-                -- Habilitacion de Historial
                 DECLARE @IdHabilitacionActual INT = NULL;
                 DECLARE @DescActual VARCHAR(100) = NULL;
                 DECLARE @FecOtorgActual DATE = NULL;
@@ -649,7 +711,7 @@ BEGIN
                 END
 
                 -- =========================================================
-                -- 2. LÛgica AsignaciÛn con Historial
+                -- 2. L√≥gica Asignaci√≥n con Historial
                 -- =========================================================
                 DECLARE @IdAsignacionActual INT = NULL;
                 DECLARE @IdParqueActual INT = NULL;
@@ -684,7 +746,7 @@ BEGIN
                             @IdParque     = @IdParqueActual,
                             @FechaIngreso = @FechaIngresoPrevia,
                             @FechaEgreso  = @FechaBaja, 
-                            @MotivoEgreso = 'ReasignaciÛn por importaciÛn';
+                            @MotivoEgreso = 'Reasignaci√≥n por importaci√≥n';
 
                         EXEC Administracion.AsignacionParque_Insertar
                             @IdParque     = @IdParque,
@@ -701,7 +763,6 @@ BEGIN
                     SET @IdAsignacion = @IdAsignacionActual;
                 END
 
-                -- Si el DNI existe, actualiza, sino inserta.
                 IF EXISTS (SELECT 1 FROM Administracion.Personal WHERE DNI = @DNI)
                 BEGIN
                     EXEC Administracion.Personal_Actualizar
@@ -751,5 +812,5 @@ BEGIN
 END
 GO
 
-EXEC ImportarArchivoPersonal
-    'C:\Users\iviez\Documents\BDDA\TP\ParquesNacionales\0. Entradas\2. Personal.csv' 
+EXEC Administracion.ImportarArchivoPersonal
+    'C:\Users\iviez\Documents\BDDA\TP Gesti√≥n de Parques Nacionales\ParquesNacionales\0. Entradas\2. Personal.csv'

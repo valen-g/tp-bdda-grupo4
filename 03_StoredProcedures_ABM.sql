@@ -143,7 +143,7 @@ CREATE OR ALTER PROCEDURE Administracion.Parque_Insertar
     @Ubicacion VARCHAR(200),
     @Superficie DECIMAL(12,2),
     @Descripcion VARCHAR(100) = NULL,
-    @IdTipoParque INT OUTPUT = NULL,
+    @IdTipoParque INT OUTPUT,
     @EsActivo BIT = 1
 )
 AS

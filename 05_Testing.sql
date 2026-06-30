@@ -3,11 +3,11 @@
     Objetivo: SCRIPT DE TESTING Y CARGA DE DATOS
     - 10 Parques (Manuales)
     - 20 Guardaparques
-    - 20 GuÌas
+    - 20 Gu√≠as
     - 30 Actividades/Tours
     - 10 Concesiones
     - Historial de Ventas
-    - Casos Obligatorios (Cupo completo, simultaneidad, concesiÛn vencida, errores).
+    - Casos Obligatorios (Cupo completo, simultaneidad, concesi√≥n vencida, errores).
 ================================================================================
 */
 
@@ -28,21 +28,22 @@ DELETE FROM Administracion.Actividad;
 -- 1. PARQUES
 -- ============================================================================
 -- Resultado Esperado: Se insertan 10 parques nacionales correctamente. 
-EXEC Administracion.Parque_Insertar 'Parque Nacional - Iguaz˙', 'Misiones', 67700, 'Cataratas', 1, 1;
-EXEC Administracion.Parque_Insertar 'Parque Nacional - Los Glaciares', 'Santa Cruz', 726927, 'Hielo frio', 1, 1;
-EXEC Administracion.Parque_Insertar 'Parque Nacional - Nahuel Huapi', 'RÌo Negro y NeuquÈn', 710000, 'Nahuelito.', 1, 1;
-EXEC Administracion.Parque_Insertar 'Parque Nacional - Talampaya', 'La Rioja', 215000, 'CaÒones rocosos.', 1, 1;
-EXEC Administracion.Parque_Insertar 'Parque Nacional - LanÌn', 'NeuquÈn', 412000, 'Volc·n LanÌn.', 1, 1;
-EXEC Administracion.Parque_Insertar 'Parque Nacional - Tierra del Fuego', 'Tierra del Fuego', 68909, 'Fin del mundo', 1, 1;
-EXEC Administracion.Parque_Insertar 'Parque Nacional - El Palmar', 'Entre RÌos', 8500, 'Palmeras Yatay', 1, 1;
-EXEC Administracion.Parque_Insertar 'Parque Nacional - Quebrada del Condorito', 'CÛrdoba', 37344, 'Avistaje de cÛndores', 1, 1;
-EXEC Administracion.Parque_Insertar 'Parque Nacional - Los Alerces', 'Chubut', 259570, 'Alerzal milenario', 1, 1;
-EXEC Administracion.Parque_Insertar 'Parque Nacional - Sierra de las Quijadas', 'San Luis', 73533, 'FÛsiles y huellas', 1, 1;
+
+EXEC Administracion.Parque_Insertar 'Parque Nacional Esteros de Farrapos', 'R√≠o Negro', 17496, 'Humedales protegidos', 1, 1;
+EXEC Administracion.Parque_Insertar 'Parque Nacional Cabo Polonio', 'Rocha', 25820, 'Dunas y lobos marinos', 1, 1;
+EXEC Administracion.Parque_Insertar 'Parque Nacional San Miguel', 'Rocha', 1540, 'Lagunas y monte nativo', 1, 1;
+EXEC Administracion.Parque_Insertar 'Parque Nacional Valle del Lunarejo', 'Rivera', 29820, 'Quebradas y biodiversidad', 1, 1;
+EXEC Administracion.Parque_Insertar 'Parque Nacional Estero de Pelotas', 'Rocha', 2200, 'Aves acu√°ticas', 1, 1;
+EXEC Administracion.Parque_Insertar 'Parque Nacional Laguna de Rocha', 'Rocha', 7200, 'Laguna costera protegida', 1, 1;
+EXEC Administracion.Parque_Insertar 'Parque Nacional Quebrada de los Cuervos', 'Treinta y Tres', 4413, 'Quebradas y senderos', 1, 1;
+EXEC Administracion.Parque_Insertar 'Parque Nacional Montes del Queguay', 'Paysand√∫', 20000, 'Bosques ribere√±os', 1, 1;
+EXEC Administracion.Parque_Insertar 'Parque Nacional Humedales del Santa Luc√≠a', 'Canelones', 86500, 'Ecosistema de humedales', 1, 1;
+EXEC Administracion.Parque_Insertar 'Parque Nacional Isla de Flores', 'Montevideo', 311, 'Fauna marina e historia', 1, 1;
 
 -- ============================================================================
--- 2. PERSONAL: 20 GUARDAPARQUES Y 20 GUÕAS
+-- 2. PERSONAL: 20 GUARDAPARQUES Y 20 GU√çAS
 -- ============================================================================
--- Resultado Esperado: Se insertan 20 Guardaparques y 20 GuÌas de manerca correcta.
+-- Resultado Esperado: Se insertan 20 Guardaparques y 20 Gu√≠as de manerca correcta.
 DECLARE @i INT = 1;
 DECLARE @IdHabilitacion INT;
 DECLARE @IdAsignacion INT;
@@ -73,7 +74,7 @@ END
 GO
 
 -- ============================================================================
--- 3. ACTIVIDADES/TOURS (MÌnimo 30)
+-- 3. ACTIVIDADES/TOURS (M√≠nimo 30)
 -- ============================================================================
 -- Resultado Esperado: Se generan 30 actividades correctamente.
 
@@ -85,13 +86,13 @@ DECLARE @NombreAct VARCHAR(150);
 WHILE @j <= 30
 BEGIN
     SET @IdParqueLoop = ((@j - 1) % 10) + 1;
-    SET @NombreAct = 'Actividad/Tour GenÈrico ' + CAST(@j AS VARCHAR);
+    SET @NombreAct = 'Actividad/Tour Gen√©rico ' + CAST(@j AS VARCHAR);
     
     EXEC Administracion.Actividad_Insertar 
         @IdParque = @IdParqueLoop, 
         @Nombre = @NombreAct, 
         @Tipo = 'Tour Ecoturismo', 
-        @Descripcion = 'Recorrido guiado est·ndar', 
+        @Descripcion = 'Recorrido guiado est√°ndar', 
         @Costo = 5000.00, 
         @DuracionMinutos = 120, 
         @CupoMaximo = 20, 
@@ -103,12 +104,12 @@ END
 GO
 
 -- ============================================================================
--- 4. CONCESIONES (MÌnimo 10) Y CASO OBLIGATORIO: VIGENTE Y VENCIDA
+-- 4. CONCESIONES (M√≠nimo 10) Y CASO OBLIGATORIO: VIGENTE Y VENCIDA
 -- ============================================================================
 -- Resultado Esperado: Se insertan 10 empresas y 10 concesiones correctamente. 
 DECLARE @IdConcesionGen INT;
 
--- GeneraciÛn de 10 Empresas
+-- Generaci√≥n de 10 Empresas
 EXEC Administracion.EmpresaConcesionaria_Insertar 30111111, 'Andes Outdoor S.A.', 'contacto@andes.com', 44441111;
 EXEC Administracion.EmpresaConcesionaria_Insertar 30222222, 'Iguazu Falls Travels', 'info@iguazutravel.com', 44442222;
 EXEC Administracion.EmpresaConcesionaria_Insertar 30333333, 'Patagonia Trekking SRL', 'ventas@patagonia.com', 44443333;
@@ -120,19 +121,19 @@ EXEC Administracion.EmpresaConcesionaria_Insertar 30888888, 'Eco Resto Parques',
 EXEC Administracion.EmpresaConcesionaria_Insertar 30999999, 'Souvenirs Naturales', 'souvenir@nat.com', 44449999;
 EXEC Administracion.EmpresaConcesionaria_Insertar 30101010, 'Empresa Quebrada SA', 'quebrada@sa.com', 44441010;
 
--- AsignaciÛn de las 10 Concesiones
+-- Asignaci√≥n de las 10 Concesiones
 EXEC Administracion.Concesion_Insertar 30111111, 1, 'Guiado', '2026-01-01', '2029-01-01', 150000, 'Vigente', @IdConcesionGen OUTPUT;
-EXEC Administracion.Concesion_Insertar 30222222, 2, 'GomÛn', '2026-02-15', '2031-02-15', 500000, 'Vigente', @IdConcesionGen OUTPUT;
+EXEC Administracion.Concesion_Insertar 30222222, 2, 'Gom√≥n', '2026-02-15', '2031-02-15', 500000, 'Vigente', @IdConcesionGen OUTPUT;
 EXEC Administracion.Concesion_Insertar 30333333, 3, 'Bicicletas', '2026-03-01', '2027-03-01', 80000, 'Vigente', @IdConcesionGen OUTPUT;
-EXEC Administracion.Concesion_Insertar 30444444, 4, 'Catamar·n', '2026-04-10', '2030-04-10', 650000, 'Vigente', @IdConcesionGen OUTPUT;
+EXEC Administracion.Concesion_Insertar 30444444, 4, 'Catamar√°n', '2026-04-10', '2030-04-10', 650000, 'Vigente', @IdConcesionGen OUTPUT;
 EXEC Administracion.Concesion_Insertar 30555555, 5, 'Kiosco', '2024-05-01', '2028-05-01', 120000, 'Vigente', @IdConcesionGen OUTPUT;
 EXEC Administracion.Concesion_Insertar 30666666, 6, 'Camping', '2025-01-01', '2030-01-01', 200000, 'Vigente', @IdConcesionGen OUTPUT;
 EXEC Administracion.Concesion_Insertar 30777777, 7, 'Restaurante', '2025-06-01', '2035-06-01', 800000, 'Vigente', @IdConcesionGen OUTPUT;
 EXEC Administracion.Concesion_Insertar 30888888, 8, 'Tienda', '2026-01-01', '2028-01-01', 150000, 'Vigente', @IdConcesionGen OUTPUT;
 EXEC Administracion.Concesion_Insertar 30999999, 9, 'Fotos', '2026-01-01', '2029-01-01', 50000, 'Vigente', @IdConcesionGen OUTPUT;
 
--- CONCESI”N VENCIDA
-EXEC Administracion.Concesion_Insertar 30101010, 10, 'HeladerÌa', '2020-01-01', '2023-01-01', 90000, 'Vencida', @IdConcesionGen OUTPUT;
+-- CONCESI√ìN VENCIDA
+EXEC Administracion.Concesion_Insertar 30101010, 10, 'Helader√≠a', '2020-01-01', '2023-01-01', 90000, 'Vencida', @IdConcesionGen OUTPUT;
 GO
 
 -- ============================================================================
@@ -151,21 +152,21 @@ EXEC Administracion.Actividad_Insertar
     @Costo = 20000.00, @DuracionMinutos = 60, @CupoMaximo = 4, @EsActivo = 1, 
     @IdActividad = @IdActividadCupo OUTPUT;
 
-EXEC Facturacion.TicketFactura_Insertar 1, '0001-00000999', 'BoleterÌa VIP', '2026-06-01', 'Tarjeta', 80000.00, @IdTicket OUTPUT;
+EXEC Facturacion.TicketFactura_Insertar 1, '0001-00000999', 'Boleter√≠a VIP', '2026-06-01', 'Tarjeta', 80000.00, @IdTicket OUTPUT;
 EXEC Facturacion.TicketItemActividad_Insertar @IdTicket, @IdActividadCupo, 4, '2026-06-15', 20000.00, @IdItem OUTPUT;
 
 
--- CASO OBLIGATORIO: UN PARQUE CON M⁄LTIPLES ACTIVIDADES SIMULT¡NEAS 
+-- CASO OBLIGATORIO: UN PARQUE CON M√öLTIPLES ACTIVIDADES SIMULT√ÅNEAS 
 EXEC Administracion.Actividad_Insertar 1, 'Paseo Inferior', 'Caminata', NULL, 3000, 120, 50, 1, @IdActividadSim1 OUTPUT;
 EXEC Administracion.Actividad_Insertar 1, 'Paseo Superior', 'Caminata', NULL, 3500, 90, 50, 1, @IdActividadSim2 OUTPUT;
 
-EXEC Facturacion.TicketFactura_Insertar 1, '0001-00001000', 'BoleterÌa 1', '2026-06-01', 'Efectivo', 6500.00, @IdTicket OUTPUT;
+EXEC Facturacion.TicketFactura_Insertar 1, '0001-00001000', 'Boleter√≠a 1', '2026-06-01', 'Efectivo', 6500.00, @IdTicket OUTPUT;
 EXEC Facturacion.TicketItemActividad_Insertar @IdTicket, @IdActividadSim1, 1, '2026-07-20', 3000.00, @IdItem OUTPUT;
 EXEC Facturacion.TicketItemActividad_Insertar @IdTicket, @IdActividadSim2, 1, '2026-07-20', 3500.00, @IdItem OUTPUT;
 
 
--- GENERACI”N DE HISTORIAL DE VENTAS DE ENTRADAS GENERALES
--- m˙ltiples facturas con Ìtems de entrada variando tipos de visitantes y fechas.
+-- GENERACI√ìN DE HISTORIAL DE VENTAS DE ENTRADAS GENERALES
+-- m√∫ltiples facturas con √≠tems de entrada variando tipos de visitantes y fechas.
 DECLARE @k INT = 1;
 WHILE @k <= 10
 BEGIN
@@ -173,7 +174,7 @@ BEGIN
     EXEC Facturacion.TicketFactura_Insertar 
         @IdParque = 1, 
         @NumeroFactura = @NumeroFacturaActual, 
-        @PuntoDeVenta = 'BoleterÌa Web', 
+        @PuntoDeVenta = 'Boleter√≠a Web', 
         @FechaEmision = '2026-05-01', 
         @FormaPago = 'Mercado Pago', 
         @Total = 15000.00, 
@@ -216,13 +217,13 @@ EXEC Facturacion.PagoCanon_Insertar 10, 1, 2023, 90000.00, '2023-01-10', 'Impago
 GO
 
 
--- GuÌa asignado a m˙ltiples actividades actualmente
+-- Gu√≠a asignado a m√∫ltiples actividades actualmente
 EXEC Administracion.ActividadGuia_Insertar 
     @DniPersonal = 20000001, @IdActividad = 1, @FechaDesde = '2025-03-01', @FechaHasta = NULL;
 EXEC Administracion.ActividadGuia_Insertar 
     @DniPersonal = 20000001, @IdActividad = 2, @FechaDesde = '2025-03-01', @FechaHasta = NULL;
 
--- CASO 2: M˙ltiples guÌas para una misma actividad (Muchos a 1)
+-- CASO 2: M√∫ltiples gu√≠as para una misma actividad (Muchos a 1)
 EXEC Administracion.ActividadGuia_Insertar 
     @DniPersonal = 20000002, @IdActividad = 3, @FechaDesde = '2025-04-01', @FechaHasta = NULL;
 EXEC Administracion.ActividadGuia_Insertar 
@@ -237,16 +238,16 @@ EXEC Administracion.ActividadGuia_Insertar
     @DniPersonal = 20000006, @IdActividad = 5, @FechaDesde = '2024-06-01', @FechaHasta = '2025-01-01';
 
 -- ============================================================================
--- CASO 4: ReasignaciÛn temporal del mismo guÌa
+-- CASO 4: Reasignaci√≥n temporal del mismo gu√≠a
 -- ============================================================================
--- El guÌa 20000007 dio la Actividad 6 hasta fin de aÒo, y al dÌa siguiente empezÛ con la Actividad 7
+-- El gu√≠a 20000007 dio la Actividad 6 hasta fin de a√±o, y al d√≠a siguiente empez√≥ con la Actividad 7
 EXEC Administracion.ActividadGuia_Insertar 
     @DniPersonal = 20000007, @IdActividad = 6, @FechaDesde = '2024-01-01', @FechaHasta = '2024-12-31';
 EXEC Administracion.ActividadGuia_Insertar 
     @DniPersonal = 20000007, @IdActividad = 7, @FechaDesde = '2025-01-01', @FechaHasta = NULL;
 
 -- ============================================================================
--- CASO 5: Asignaciones est·ndar para cumplir volumen
+-- CASO 5: Asignaciones est√°ndar para cumplir volumen
 -- ============================================================================
 EXEC Administracion.ActividadGuia_Insertar @DniPersonal = 20000008, @IdActividad = 8, @FechaDesde = '2025-02-01', @FechaHasta = NULL;
 EXEC Administracion.ActividadGuia_Insertar @DniPersonal = 20000009, @IdActividad = 9, @FechaDesde = '2025-02-01', @FechaHasta = NULL;
@@ -256,38 +257,38 @@ EXEC Administracion.ActividadGuia_Insertar @DniPersonal = 20000012, @IdActividad
 GO
 
 -- ============================================================================
--- IMPORTACI”N CON ERRORES PARCIALES
+-- IMPORTACI√ìN CON ERRORES PARCIALES
 -- ============================================================================
 /*
-    Al ejecutar el SP de importaciÛn (ej: ImportarArchivoTarifaCSV) provisto con un 
-    archivo CSV que contenga lÌneas corruptas (por ejemplo, una letra 'A' en la 
-    columna de Precio), el uso de TRY_CAST convertir· ese error en NULL, y la 
-    validaciÛn de lÛgica de negocio o constraints de la tabla ignorar· ese registro 
-    (o la consulta descartar· nulos), permitiendo que el resto del bloque (BULK INSERT 
-    y el Cursor) finalice con Èxito e importe el resto de los registros correctos.
+    Al ejecutar el SP de importaci√≥n (ej: ImportarArchivoTarifaCSV) provisto con un 
+    archivo CSV que contenga l√≠neas corruptas (por ejemplo, una letra 'A' en la 
+    columna de Precio), el uso de TRY_CAST convertir√° ese error en NULL, y la 
+    validaci√≥n de l√≥gica de negocio o constraints de la tabla ignorar√° ese registro 
+    (o la consulta descartar√° nulos), permitiendo que el resto del bloque (BULK INSERT 
+    y el Cursor) finalice con √©xito e importe el resto de los registros correctos.
 */
 
 /*
 ================================================================================
     SCRIPT DE TESTING NEGATIVO (VALIDACIONES DE NEGOCIO)
-    Objetivo: Demostrar que los SPs rechazan datos inv·lidos y cumplen con 
-    el requisito de mostrar un ˙nico mensaje con todos los errores acumulados.
+    Objetivo: Demostrar que los SPs rechazan datos inv√°lidos y cumplen con 
+    el requisito de mostrar un √∫nico mensaje con todos los errores acumulados.
 ================================================================================
 */
 
-PRINT '--- PRUEBA 1: Insertar un parque con m˙ltiples errores ---';
--- Errores forzados: Nombre vacÌo, UbicaciÛn vacÌa, Superficie negativa.
+PRINT '--- PRUEBA 1: Insertar un parque con m√∫ltiples errores ---';
+-- Errores forzados: Nombre vac√≠o, Ubicaci√≥n vac√≠a, Superficie negativa.
 -- Resultado esperado: Un solo RAISERROR indicando los tres problemas.
 EXEC Administracion.Parque_Insertar 
     @Nombre = '', 
     @Ubicacion = '   ', 
     @Superficie = -500, 
-    @Descripcion = 'Parque Inv·lido', 
+    @Descripcion = 'Parque Inv√°lido', 
     @IdTipoParque = 1;
 GO
 
-PRINT '--- PRUEBA 2: Insertar una actividad con valores ilÛgicos ---';
--- Errores forzados: Costo negativo, DuraciÛn en 0, Cupo negativo.
+PRINT '--- PRUEBA 2: Insertar una actividad con valores il√≥gicos ---';
+-- Errores forzados: Costo negativo, Duraci√≥n en 0, Cupo negativo.
 -- Resultado esperado: RAISERROR acumulando las tres reglas de negocio rotas.
 DECLARE @FalloIdActividad INT;
 EXEC Administracion.Actividad_Insertar 
@@ -300,7 +301,7 @@ EXEC Administracion.Actividad_Insertar
     @IdActividad = @FalloIdActividad OUTPUT;
 GO
 
-PRINT '--- PRUEBA 3: Insertar una concesiÛn con fechas invertidas y canon inv·lido ---';
+PRINT '--- PRUEBA 3: Insertar una concesi√≥n con fechas invertidas y canon inv√°lido ---';
 -- Errores forzados: Fecha de inicio es posterior a la fecha de fin, y canon negativo.
 DECLARE @FalloIdConcesion INT;
 EXEC Administracion.Concesion_Insertar 
@@ -314,7 +315,7 @@ EXEC Administracion.Concesion_Insertar
     @IdConcesion = @FalloIdConcesion OUTPUT;
 GO
 
-PRINT '--- PRUEBA 4: Venta de Entradas con cantidad y precios inv·lidos ---';
+PRINT '--- PRUEBA 4: Venta de Entradas con cantidad y precios inv√°lidos ---';
 -- Errores forzados: Intentar vender 0 entradas y a un precio negativo.
 DECLARE @FalloIdItemEntrada INT;
 EXEC Facturacion.TicketItemEntrada_Insertar 
@@ -326,16 +327,16 @@ EXEC Facturacion.TicketItemEntrada_Insertar
     @IdItemEntrada = @FalloIdItemEntrada OUTPUT;
 GO
 
-PRINT '--- PRUEBA 5: Intentar eliminar un Tipo de Parque que est· en uso ---';
--- Error forzado: ViolaciÛn de integridad referencial gestionada por lÛgica.
+PRINT '--- PRUEBA 5: Intentar eliminar un Tipo de Parque que est√° en uso ---';
+-- Error forzado: Violaci√≥n de integridad referencial gestionada por l√≥gica.
 -- Resultado esperado: El SP valida si existen parques asociados antes de hacer el DELETE.
--- (Asumiendo que el IdTipoParque 1 se usÛ en el script de carga masiva).
+-- (Asumiendo que el IdTipoParque 1 se us√≥ en el script de carga masiva).
 EXEC Administracion.TipoParque_Eliminar @IdTipoParque = 1;
 GO
 
 PRINT '--- PRUEBA 6: Duplicidad de Empresa Concesionaria ---';
--- Error forzado: Insertar un CUIT o RazÛn Social que ya existe.
--- Resultado esperado: El SP frena la inserciÛn indicando que ya existe.
+-- Error forzado: Insertar un CUIT o Raz√≥n Social que ya existe.
+-- Resultado esperado: El SP frena la inserci√≥n indicando que ya existe.
 EXEC Administracion.EmpresaConcesionaria_Insertar 
     @CUIT = 30111111, -- Este CUIT ya lo insertamos en el script anterior
     @RazonSocial = 'Otra Empresa Falsa';
