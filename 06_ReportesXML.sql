@@ -1,3 +1,25 @@
+/*
+================================================================================
+# Universidad: Universidad Nacional de La Matanza
+# Materia: 3641 - Bases de Datos Aplicada
+# Grupo: Grupo 4
+# Integrantes:
+- Belloni, Nicolas
+- Bernardo, Ivan
+- Gonzalez, Agustin
+- Gallo, Valentina
+
+# Fecha: 20/06/2026
+--------------------------------------------------------------------------------
+    Script          : 06_ReportesXML.sql
+    Objetivo        : Crear los Stored Procedures de reportes (Entrega 7):
+                       visitas por semana/mes/año, ingresos por parque,
+                       deudores de concesiones, matriz de visitas (Pivot)
+                       y parques con concesiones anidadas. Todos retornan
+                       el resultado en formato XML.
+================================================================================
+*/
+
 USE ParquesNacionalesDB;
 GO
 
